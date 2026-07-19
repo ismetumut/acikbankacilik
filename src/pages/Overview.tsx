@@ -48,9 +48,9 @@ export function Overview() {
           <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
             Toplam bakiye · {accounts?.length ?? "…"} hesap
           </p>
-          <div className="mt-2 flex items-end gap-3">
+          <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-2">
             <Money value={TOTAL_BALANCE} size="xl" className="text-white" />
-            <span className="mb-1.5 flex items-center gap-1 rounded-full bg-brand-400/20 px-2.5 py-1 text-xs font-bold text-brand-400">
+            <span className="mb-1.5 flex shrink-0 items-center gap-1 rounded-full bg-brand-400/20 px-2.5 py-1 text-xs font-bold text-brand-400">
               ▲ ₺124.500 bu hafta
             </span>
           </div>

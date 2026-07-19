@@ -147,31 +147,33 @@ export function PaymentInitiation() {
             ) : (
               <div className="space-y-3">
                 {approvals.map((a) => (
-                  <div key={a.id} className="flex items-center justify-between gap-3 rounded-xl border border-line p-3">
+                  <div key={a.id} className="flex flex-col gap-3 rounded-xl border border-line p-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-ink-900">{a.title}</p>
                       <p className="truncate text-xs text-muted">
                         {a.subtitle} {a.risky && <span className="text-warning-700">⚠</span>}
                       </p>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
-                      <Money value={a.amount} size="sm" className="w-20 text-right" />
-                      <Button
-                        size="sm"
-                        variant="primary"
-                        disabled={decidingId === a.id}
-                        onClick={() => handleDecision(a.id, "approve")}
-                      >
-                        Onayla
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="secondary"
-                        disabled={decidingId === a.id}
-                        onClick={() => handleDecision(a.id, "reject")}
-                      >
-                        Reddet
-                      </Button>
+                    <div className="flex shrink-0 items-center justify-between gap-2 sm:justify-end">
+                      <Money value={a.amount} size="sm" className="text-right" />
+                      <div className="flex items-center gap-2">
+                        <Button
+                          size="sm"
+                          variant="primary"
+                          disabled={decidingId === a.id}
+                          onClick={() => handleDecision(a.id, "approve")}
+                        >
+                          Onayla
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="secondary"
+                          disabled={decidingId === a.id}
+                          onClick={() => handleDecision(a.id, "reject")}
+                        >
+                          Reddet
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 ))}

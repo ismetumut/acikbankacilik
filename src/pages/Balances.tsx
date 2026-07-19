@@ -48,8 +48,8 @@ export function Balances() {
 
   return (
     <div className="space-y-6">
-      <Card className="flex flex-wrap items-center justify-between gap-4">
-        <div className="flex items-center gap-2">
+      <Card className="space-y-4">
+        <div className="flex flex-wrap items-center gap-2">
           {CURRENCIES.map((c) => (
             <button
               key={c}
@@ -61,11 +61,11 @@ export function Balances() {
               {c}
             </button>
           ))}
-          <span className="ml-2 text-xs text-muted">
+          <span className="text-xs text-muted">
             Tüm döviz cinslerindeki bakiyeler seçili kura çevrilerek toplam gösterilir
           </span>
         </div>
-        <div className="flex gap-5 text-xs">
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
           {(Object.keys(RATES) as (keyof typeof RATES)[]).map((k) => (
             <span key={k}>
               <span className="font-bold text-ink-900">{k}</span>{" "}
@@ -93,7 +93,7 @@ export function Balances() {
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <Card>
           <CardTitle className="mb-4">Banka bazlı dağılım</CardTitle>
-          <div className="flex items-center gap-6">
+          <div className="flex flex-col items-center gap-6 sm:flex-row">
             <div className="relative h-40 w-40 shrink-0">
               {distribution.length > 0 ? (
                 <ResponsiveContainer width="100%" height="100%">

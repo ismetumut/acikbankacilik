@@ -105,7 +105,7 @@ export function Reconciliation() {
                   {selected.candidates.map((c, i) => (
                     <div
                       key={c.id}
-                      className={`flex items-center justify-between gap-3 rounded-lg border p-3 ${
+                      className={`flex flex-col gap-3 rounded-lg border p-3 sm:flex-row sm:items-center sm:justify-between ${
                         i === 0 ? "border-brand-500 bg-brand-50" : "border-line"
                       }`}
                     >
@@ -113,7 +113,7 @@ export function Reconciliation() {
                         <p className="truncate text-sm font-bold text-ink-900">{c.label}</p>
                         <p className="truncate text-xs text-muted">{c.detail}</p>
                       </div>
-                      <div className="flex shrink-0 items-center gap-3">
+                      <div className="flex shrink-0 items-center justify-between gap-3 sm:justify-end">
                         <div className="w-20">
                           <div className="mb-1 flex justify-between text-[10px] text-muted">
                             <span>uyum</span>

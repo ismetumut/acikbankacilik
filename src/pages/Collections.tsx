@@ -168,9 +168,9 @@ export function Collections() {
             ) : (
               <div className="divide-y divide-line">
                 {overdue.map((o) => (
-                  <div key={o.id} className="flex items-center justify-between gap-3 py-3">
+                  <div key={o.id} className="flex flex-col gap-3 py-3 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex items-center gap-3">
-                      <span className="flex h-9 min-w-9 items-center justify-center rounded-full bg-negative-100 px-2 text-xs font-bold text-negative-700">
+                      <span className="flex h-9 min-w-9 shrink-0 items-center justify-center rounded-full bg-negative-100 px-2 text-xs font-bold text-negative-700">
                         {o.daysOverdue} gün
                       </span>
                       <div className="min-w-0">
@@ -180,7 +180,7 @@ export function Collections() {
                         </p>
                       </div>
                     </div>
-                    <div className="flex shrink-0 items-center gap-2">
+                    <div className="flex shrink-0 items-center justify-between gap-2 pl-12 sm:justify-end sm:pl-0">
                       <span className="text-sm font-bold tabular text-negative-700">
                         {formatCurrency(o.amount, { withDecimals: false })}
                       </span>
