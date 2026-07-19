@@ -9,11 +9,12 @@ import { Money } from "@/components/ui/Money";
 import { Button } from "@/components/ui/Button";
 import { Pagination } from "@/components/ui/Pagination";
 import { LoadingRows } from "@/components/ui/Skeleton";
+import { Toggle } from "@/components/ui/Toggle";
 import { formatDateTime } from "@/lib/format";
 import { BANKS } from "@/lib/mockData";
 import type { AccountingStatus, BankId } from "@/lib/types";
 
-const CATEGORIES = ["Tahsilat", "Vergi & SGK", "Tedarikçi", "Kira", "Maaş", "Döviz", "Eşleşmedi"];
+const CATEGORIES = ["Tahsilat", "Vergi & SGK", "Tedarikçi", "Kira", "Maaş", "Döviz", "Virman", "Eşleşmedi"];
 
 const STATUS_TONE: Record<AccountingStatus, "positive" | "warning" | "negative"> = {
   Aktarıldı: "positive",
@@ -28,17 +29,27 @@ export function Transactions() {
   const [search, setSearch] = useState(searchParams.get("q") ?? "");
   const [bankId, setBankId] = useState<BankId | "">("");
   const [category, setCategory] = useState("");
+  const [hideVirman, setHideVirman] = useState(true);
   const pageSize = 10;
 
   const { data, loading } = useAsync(
-    () => banking.getTransactions({ page, pageSize, search, bankId: bankId || undefined, category: category || undefined }),
-    [page, search, bankId, category],
+    () =>
+      banking.getTransactions({
+        page,
+        pageSize,
+        search,
+        bankId: bankId || undefined,
+        category: category || undefined,
+        hideVirman: category === "Virman" ? false : hideVirman,
+      }),
+    [page, search, bankId, category, hideVirman],
   );
 
   function clearFilters() {
     setSearch("");
     setBankId("");
     setCategory("");
+    setHideVirman(true);
     setPage(1);
   }
 
@@ -100,11 +111,27 @@ export function Transactions() {
             />
           </Field>
         </div>
-        <div className="mt-4 flex justify-end gap-2">
-          <Button variant="secondary" onClick={clearFilters}>
-            Temizle
-          </Button>
-          <Button variant="primary">Listele</Button>
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-line pt-4">
+          <div className="flex items-center gap-3">
+            <Toggle
+              checked={hideVirman}
+              onChange={() => {
+                setHideVirman((v) => !v);
+                setPage(1);
+              }}
+              label="Virmanları hariç tut"
+            />
+            <div>
+              <p className="text-sm font-semibold text-ink-900">Virmanları hariç tut</p>
+              <p className="text-xs text-muted">Kendi hesaplarınız arasındaki transferler listeden gizlenir</p>
+            </div>
+          </div>
+          <div className="flex gap-2">
+            <Button variant="secondary" onClick={clearFilters}>
+              Temizle
+            </Button>
+            <Button variant="primary">Listele</Button>
+          </div>
         </div>
       </Card>
 
@@ -161,7 +188,9 @@ export function Transactions() {
                       <td className="py-3 pr-3 whitespace-nowrap text-xs text-muted">{formatDateTime(t.date)}</td>
                       <td className="py-3 pr-3 max-w-[260px] truncate font-medium text-ink-900">{t.description}</td>
                       <td className="py-3 pr-3">
-                        <Badge tone={t.category === "Eşleşmedi" ? "warning" : "neutral"}>{t.category}</Badge>
+                        <Badge tone={t.category === "Eşleşmedi" ? "warning" : t.category === "Virman" ? "brand" : "neutral"}>
+                          {t.category}
+                        </Badge>
                       </td>
                       <td className="py-3 pr-3 text-right">
                         <Money value={t.amount} signed size="sm" colorize />

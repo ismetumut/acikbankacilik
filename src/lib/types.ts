@@ -29,6 +29,7 @@ export type TransactionCategory =
   | "Kira"
   | "Maaş"
   | "Döviz"
+  | "Virman"
   | "Eşleşmedi";
 
 export type AccountingStatus = "Aktarıldı" | "Bekliyor" | "Hata";

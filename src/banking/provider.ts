@@ -23,6 +23,7 @@ export interface TransactionQuery {
   bankId?: BankId;
   category?: string;
   search?: string;
+  hideVirman?: boolean;
 }
 
 export interface TransactionPage {

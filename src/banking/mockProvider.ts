@@ -71,6 +71,7 @@ export class MockBankingProvider implements BankingProvider {
     let items = transactions;
     if (query.bankId) items = items.filter((t) => t.bankId === query.bankId);
     if (query.category) items = items.filter((t) => t.category === query.category);
+    if (query.hideVirman) items = items.filter((t) => t.category !== "Virman");
     if (query.search) {
       const term = query.search.toLowerCase();
       items = items.filter(
