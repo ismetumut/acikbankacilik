@@ -1,0 +1,620 @@
+import type {
+  Account,
+  AssistantExchange,
+  Bank,
+  BankId,
+  CashFlowForecastPoint,
+  CashFlowPoint,
+  ClientSummary,
+  ConsentGrant,
+  ExpectedCashItem,
+  NotificationSetting,
+  OverdueReceivable,
+  PaymentLink,
+  PendingApproval,
+  ReconciliationException,
+  RecentPayment,
+  ReportPackage,
+  Transaction,
+  TransactionCategory,
+} from "./types";
+
+/** Deterministic PRNG (mulberry32) so mock data is stable across reloads. */
+function mulberry32(seed: number) {
+  let a = seed;
+  return function rand() {
+    a |= 0;
+    a = (a + 0x6d2b79f5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+const rand = mulberry32(20260719);
+function pick<T>(arr: readonly T[]): T {
+  return arr[Math.floor(rand() * arr.length)];
+}
+function randInt(min: number, max: number): number {
+  return Math.floor(rand() * (max - min + 1)) + min;
+}
+
+/** Fixed "today" for this demo dataset — relative labels (lastSync, consent countdowns)
+ * are computed against this instead of the real clock, so the story stays consistent
+ * no matter when the app is actually opened. */
+export const DEMO_NOW = new Date("2026-07-17T23:59:00+03:00");
+
+function daysAgoIso(days: number, hour = 9, minute = 0): string {
+  const d = new Date(DEMO_NOW);
+  d.setDate(d.getDate() - days);
+  d.setHours(hour, minute, 0, 0);
+  return d.toISOString();
+}
+
+export const COMPANY = {
+  name: "Demir Ticaret A.Ş.",
+  userName: "Selin Demir",
+  userInitials: "SD",
+  userRole: "Yönetici",
+};
+
+export const BANKS: Bank[] = [
+  { id: "ziraat", name: "Ziraat Bankası", shortName: "Ziraat", initials: "Z", colorHex: "#B4231E" },
+  { id: "isbankasi", name: "Türkiye İş Bankası", shortName: "İş Bankası", initials: "İŞ", colorHex: "#1B2A63" },
+  { id: "garanti", name: "Garanti BBVA", shortName: "Garanti BBVA", initials: "G", colorHex: "#0C6B41" },
+  { id: "yapikredi", name: "Yapı Kredi", shortName: "Yapı Kredi", initials: "YK", colorHex: "#1E3A6E" },
+];
+
+export function bankOf(id: BankId): Bank {
+  return BANKS.find((b) => b.id === id)!;
+}
+
+export const ACCOUNTS: Account[] = [
+  {
+    id: "acc-ziraat-vadesiz",
+    bankId: "ziraat",
+    label: "Ziraat — Vadesiz TL",
+    subLabel: "Ana hesap",
+    iban: "TR33 0001 0002 3456 7891 0122 17",
+    currency: "TRY",
+    balance: 1_118_640,
+    availableBalance: 1_318_640,
+    lastSync: daysAgoIso(0, 12, 4),
+    kind: "vadesiz",
+  },
+  {
+    id: "acc-ziraat-pos",
+    bankId: "ziraat",
+    label: "Ziraat — POS Hesabı",
+    subLabel: "Tahsilat",
+    iban: "TR33 0001 0002 3456 7891 0122 18",
+    currency: "TRY",
+    balance: 86_240,
+    availableBalance: 86_240,
+    lastSync: daysAgoIso(0, 12, 4),
+    kind: "pos",
+  },
+  {
+    id: "acc-is-vadesiz",
+    bankId: "isbankasi",
+    label: "İş Bankası — Vadesiz TL",
+    subLabel: "Operasyon",
+    iban: "TR64 0006 4000 0011 2345 6788 21",
+    currency: "TRY",
+    balance: 638_210,
+    availableBalance: 638_210,
+    lastSync: daysAgoIso(0, 11, 58),
+    kind: "vadesiz",
+  },
+  {
+    id: "acc-is-doviz",
+    bankId: "isbankasi",
+    label: "İş Bankası — Döviz (USD)",
+    subLabel: "Döviz",
+    iban: "TR64 0006 4000 0021 2345 6788 22",
+    currency: "USD",
+    balance: 4_975,
+    availableBalance: 4_975,
+    lastSync: daysAgoIso(0, 11, 58),
+    kind: "doviz",
+  },
+  {
+    id: "acc-garanti-vadesiz",
+    bankId: "garanti",
+    label: "Garanti BBVA — Vadesiz TL",
+    subLabel: "Operasyon · ek hesap",
+    iban: "TR63 0006 2000 1234 0006 2988 34",
+    currency: "TRY",
+    balance: 571_425.42,
+    availableBalance: 923_384,
+    lastSync: daysAgoIso(0, 11, 56),
+    kind: "ekhesap",
+    overdraftLimit: 148_041.17,
+  },
+  {
+    id: "acc-yapikredi-vadesiz",
+    bankId: "yapikredi",
+    label: "Yapı Kredi — Vadesiz TL",
+    subLabel: "POS + operasyon",
+    iban: "TR12 0006 7010 0000 0074 4155 09",
+    currency: "TRY",
+    balance: 228_400,
+    availableBalance: 228_400,
+    lastSync: daysAgoIso(0, 12, 4),
+    kind: "vadesiz",
+  },
+];
+
+export const TOTAL_BALANCE = ACCOUNTS.filter((a) => a.currency === "TRY").reduce(
+  (sum, a) => sum + a.balance,
+  0,
+);
+
+const COUNTERPARTIES: { name: string; category: TransactionCategory; channel: Transaction["channel"] }[] = [
+  { name: "Karadeniz Gıda Toptan", category: "Tahsilat", channel: "FAST" },
+  { name: "Beyaz Ofis Kırtasiye", category: "Tahsilat", channel: "POS" },
+  { name: "Ege Market Zinciri", category: "Tahsilat", channel: "FAST" },
+  { name: "Anadolu Ambalaj San.", category: "Tedarikçi", channel: "EFT" },
+  { name: "Delta Elektrik", category: "Tedarikçi", channel: "EFT" },
+  { name: "Mert Nakliyat", category: "Tedarikçi", channel: "Havale" },
+  { name: "Meridyen Lojistik", category: "Tedarikçi", channel: "EFT" },
+  { name: "SGK Prim Ödemesi", category: "Vergi & SGK", channel: "Otomatik Talimat" },
+  { name: "Vergi Dairesi — KDV", category: "Vergi & SGK", channel: "EFT" },
+  { name: "Kira — Merkez Depo", category: "Kira", channel: "Otomatik Talimat" },
+  { name: "Personel Maaş Ödemesi", category: "Maaş", channel: "EFT" },
+  { name: "Döviz Alım İşlemi", category: "Döviz", channel: "Havale" },
+];
+
+function buildTransactions(count: number): Transaction[] {
+  const list: Transaction[] = [];
+  let dayCursor = 0;
+  for (let i = 0; i < count; i++) {
+    dayCursor += rand() < 0.6 ? 0 : 1;
+    const account = pick(ACCOUNTS.filter((a) => a.currency === "TRY"));
+    const template = pick(COUNTERPARTIES);
+    const isIncoming = template.category === "Tahsilat";
+    const amount = isIncoming
+      ? randInt(4_000, 96_000)
+      : -randInt(3_000, 386_000);
+    const unmatched = rand() < 0.045;
+    list.push({
+      id: `txn-${i.toString().padStart(4, "0")}`,
+      bankId: account.bankId,
+      accountId: account.id,
+      date: daysAgoIso(dayCursor, randInt(8, 18), randInt(0, 59)),
+      counterparty: template.name,
+      description: `${template.channel} · ${template.name}`,
+      channel: template.channel,
+      reference: `FTR-2026-${randInt(1000, 1299)}`,
+      category: unmatched ? "Eşleşmedi" : template.category,
+      amount,
+      balanceAfter: account.balance - i * 120,
+      accountingStatus: unmatched ? "Bekliyor" : rand() < 0.05 ? "Hata" : "Aktarıldı",
+      flaggedAnomaly: false,
+    });
+  }
+  return list;
+}
+
+export const TRANSACTIONS: Transaction[] = [
+  {
+    id: "txn-0000",
+    bankId: "isbankasi",
+    accountId: "acc-is-vadesiz",
+    date: daysAgoIso(0, 10, 42),
+    counterparty: "Karadeniz Gıda Toptan",
+    description: 'FAST · "2026-7 TAHSILAT" · Karadeniz Gıda',
+    channel: "FAST",
+    reference: "2026-7 TAHSILAT",
+    category: "Tahsilat",
+    amount: 42_180,
+    balanceAfter: 842_610,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-0001",
+    bankId: "ziraat",
+    accountId: "acc-ziraat-vadesiz",
+    date: daysAgoIso(0, 9, 0),
+    counterparty: "SGK Prim Ödemesi",
+    description: "SGK prim ödemesi · otomatik talimat",
+    channel: "Otomatik Talimat",
+    category: "Vergi & SGK",
+    amount: -28_300,
+    balanceAfter: 1_204_880,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-0002",
+    bankId: "garanti",
+    accountId: "acc-garanti-vadesiz",
+    date: daysAgoIso(1, 16, 20),
+    counterparty: "Anadolu Ambalaj San.",
+    description: "EFT · Anadolu Ambalaj · FTR-2026-1201",
+    channel: "EFT",
+    reference: "FTR-2026-1201",
+    category: "Tedarikçi",
+    amount: -46_600,
+    balanceAfter: 571_425,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-0003",
+    bankId: "yapikredi",
+    accountId: "acc-yapikredi-vadesiz",
+    date: daysAgoIso(1, 23, 59),
+    counterparty: "Beyaz Ofis Kırtasiye",
+    description: "POS gün sonu tahsilatı · 214 işlem",
+    channel: "POS",
+    category: "Tahsilat",
+    amount: 11_940,
+    balanceAfter: 228_400,
+    accountingStatus: "Bekliyor",
+  },
+  {
+    id: "txn-0004",
+    bankId: "ziraat",
+    accountId: "acc-ziraat-vadesiz",
+    date: daysAgoIso(2, 8, 0),
+    counterparty: "Kira — Merkez Depo",
+    description: "Kira — Merkez Depo · düzenli ödeme",
+    channel: "Otomatik Talimat",
+    category: "Kira",
+    amount: -85_000,
+    balanceAfter: 1_233_180,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-0005",
+    bankId: "ziraat",
+    accountId: "acc-ziraat-vadesiz",
+    date: daysAgoIso(2, 11, 34),
+    counterparty: "Aksa Yapı Malz. San. Tic. Ltd.",
+    description: 'FAST · "AKSA YAPI TEM ODEME 2026-7"',
+    channel: "FAST",
+    reference: "AKSA YAPI TEM ODEME 2026-7",
+    category: "Eşleşmedi",
+    amount: 57_820,
+    balanceAfter: 1_318_180,
+    accountingStatus: "Bekliyor",
+  },
+  {
+    id: "txn-0006",
+    bankId: "isbankasi",
+    accountId: "acc-is-vadesiz",
+    date: daysAgoIso(3, 17, 5),
+    counterparty: "Mert Nakliyat",
+    description: "Havale · Mert Nakliyat · açıklama boş",
+    channel: "Havale",
+    category: "Eşleşmedi",
+    amount: -12_400,
+    balanceAfter: 800_430,
+    accountingStatus: "Hata",
+  },
+  {
+    id: "txn-0007",
+    bankId: "garanti",
+    accountId: "acc-garanti-vadesiz",
+    date: daysAgoIso(3, 9, 52),
+    counterparty: "Döviz Alım İşlemi",
+    description: "Döviz alış · 5.000 USD @ 41,12",
+    channel: "EFT",
+    category: "Döviz",
+    amount: -205_600,
+    balanceAfter: 618_025,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-0008",
+    bankId: "isbankasi",
+    accountId: "acc-is-vadesiz",
+    date: daysAgoIso(4, 14, 30),
+    counterparty: "Personel Maaş Ödemesi",
+    description: "Maaş ödemesi · 14 personel",
+    channel: "EFT",
+    category: "Maaş",
+    amount: -386_000,
+    balanceAfter: 812_830,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-0009",
+    bankId: "yapikredi",
+    accountId: "acc-yapikredi-vadesiz",
+    date: daysAgoIso(4, 10, 11),
+    counterparty: "Delta Elektrik",
+    description: "EFT · Delta Elektrik · FTR-2026-1122",
+    channel: "EFT",
+    reference: "FTR-2026-1122",
+    category: "Tedarikçi",
+    amount: -31_075,
+    balanceAfter: 216_460,
+    accountingStatus: "Aktarıldı",
+  },
+  ...buildTransactions(673),
+];
+
+export const ANOMALY = {
+  counterparty: "Meridyen Lojistik",
+  amount: 48_200,
+  multiple: 3.1,
+  monthLabel: "bu ay",
+};
+
+export const CONSENTS: ConsentGrant[] = [
+  {
+    bankId: "garanti",
+    accountsCount: 1,
+    status: "expiring",
+    grantedAt: daysAgoIso(158),
+    expiresAt: daysAgoIso(-5),
+    scopeLabel: "TR63 **** 8834",
+  },
+  {
+    bankId: "ziraat",
+    accountsCount: 2,
+    status: "active",
+    grantedAt: daysAgoIso(30),
+    expiresAt: daysAgoIso(-147),
+    scopeLabel: "vadesiz + POS",
+  },
+  {
+    bankId: "isbankasi",
+    accountsCount: 2,
+    status: "active",
+    grantedAt: daysAgoIso(75),
+    expiresAt: daysAgoIso(-108),
+    scopeLabel: "vadesiz + döviz",
+  },
+  {
+    bankId: "yapikredi",
+    accountsCount: 1,
+    status: "active",
+    grantedAt: daysAgoIso(93),
+    expiresAt: daysAgoIso(-93),
+    scopeLabel: "vadesiz",
+  },
+];
+
+export const PENDING_APPROVALS: PendingApproval[] = [
+  {
+    id: "appr-1",
+    title: "Maaş ödemesi — 14 personel",
+    subtitle: "İş Bankası · toplu FAST · hazırlayan: M. Kaya",
+    bankId: "isbankasi",
+    amount: 386_000,
+    requestedBy: "M. Kaya",
+  },
+  {
+    id: "appr-2",
+    title: "KDV beyannamesi",
+    subtitle: "Ziraat · vergi dairesi · planlı 26 Tem",
+    bankId: "ziraat",
+    amount: 118_400,
+    requestedBy: "Otomasyon",
+  },
+  {
+    id: "appr-3",
+    title: "Mert Nakliyat",
+    subtitle: "Garanti BBVA · EFT · yeni alıcı",
+    bankId: "garanti",
+    amount: 12_400,
+    requestedBy: "S. Demir",
+    risky: true,
+  },
+];
+
+export const RECENT_PAYMENTS: RecentPayment[] = [
+  { id: "pay-1", bankId: "ziraat", recipient: "Anadolu Ambalaj San.", channel: "FAST", time: "10:41", amount: 46_600, status: "Tamamlandı" },
+  { id: "pay-2", bankId: "isbankasi", recipient: "Delta Elektrik", channel: "EFT", time: "09:58", amount: 31_075, status: "Tamamlandı" },
+  { id: "pay-3", bankId: "garanti", recipient: "Kira — Merkez Depo", channel: "FAST", time: "08:00", amount: 85_000, status: "Tamamlandı" },
+  { id: "pay-4", bankId: "ziraat", recipient: "Beyaz Ofis Kırtasiye", channel: "FAST", time: "16 Tem", amount: 4_320, status: "Bankada" },
+  { id: "pay-5", bankId: "isbankasi", recipient: "R. Yıldız (şahıs)", channel: "EFT", time: "15 Tem", amount: 47_305, status: "Reddedildi" },
+];
+
+export const PAYMENT_LINKS: PaymentLink[] = [
+  { id: "link-1", customer: "Ege Market Zinciri", invoiceRef: "FTR-2026-1198", channel: "WhatsApp", sentAt: "dün gönderildi", amount: 96_000, status: "Görüntülendi" },
+  { id: "link-2", customer: "Beyaz Ofis Kırtasiye", invoiceRef: "FTR-2026-1204", channel: "e-posta", sentAt: "bugün 09:14", amount: 18_400, status: "Ödendi" },
+  { id: "link-3", customer: "Mavi Otel İşletmeleri", invoiceRef: "FTR-2026-1187", channel: "SMS", sentAt: "3 gün önce", amount: 31_600, status: "Bekliyor" },
+  { id: "link-4", customer: "Çınar Lojistik", invoiceRef: "FTR-2026-1151", channel: "WhatsApp", sentAt: "9 gün önce", amount: 12_750, status: "Süresi doldu" },
+];
+
+export const OVERDUE_RECEIVABLES: OverdueReceivable[] = [
+  { id: "od-1", customer: "Doğuş İnşaat", invoiceRef: "FTR-2026-0912", daysOverdue: 34, dueDate: "13 Haz", amount: 112_000, remindersSent: 2 },
+  { id: "od-2", customer: "Mavi Otel İşletmeleri", invoiceRef: "FTR-2026-1043", daysOverdue: 23, dueDate: "24 Haz", amount: 64_300, remindersSent: 1 },
+  { id: "od-3", customer: "Arel Elektronik", invoiceRef: "FTR-2026-1102", daysOverdue: 12, dueDate: "5 Tem", amount: 43_850, remindersSent: 1 },
+  { id: "od-4", customer: "Yıldız Tekstil San.", invoiceRef: "FTR-2026-1130", daysOverdue: 6, dueDate: "11 Tem", amount: 27_750, remindersSent: 0 },
+];
+
+export const RECONCILIATION_EXCEPTIONS: ReconciliationException[] = [
+  {
+    id: "rec-1",
+    transactionId: "txn-0005",
+    bankId: "ziraat",
+    accountTail: "4417",
+    customer: "Aksa Yapı Malz. San. Tic. Ltd.",
+    date: daysAgoIso(2, 11, 34),
+    description: 'FAST · "AKSA YAPI TEM ODEME 2026-7"',
+    amount: 57_820,
+    reasonHint: "Tutar 2 faturanın toplamı olabilir",
+    candidates: [
+      { id: "cand-1", label: "FTR-2026-1184 · Aksa Yapı Malz.", detail: "14 Tem · e-Fatura · vade 30 gün", matchScore: 98, amount: 57_820 },
+      { id: "cand-2", label: "FTR-2026-1163 + 1170 (toplam)", detail: "8 + 10 Tem · iki fatura tek ödeme", matchScore: 86, amount: 57_820 },
+      { id: "cand-3", label: "Cari hesap kapama — Aksa Yapı", detail: "Açık bakiye ₺58.020 · ₺200 fark", matchScore: 71, amount: 58_020 },
+    ],
+  },
+  {
+    id: "rec-2",
+    transactionId: "txn-0006",
+    bankId: "isbankasi",
+    accountTail: "8821",
+    customer: "Mert Nakliyat",
+    date: daysAgoIso(3, 17, 5),
+    description: "Açıklama boş, karşı IBAN yeni",
+    amount: -12_400,
+    reasonHint: "Açıklama boş, karşı IBAN yeni",
+    candidates: [
+      { id: "cand-4", label: "FTR-2026-1177 · Mert Nakliyat", detail: "1 Tem · e-Fatura · vade 15 gün", matchScore: 64, amount: 12_400 },
+    ],
+  },
+  {
+    id: "rec-3",
+    transactionId: "txn-havale-yildiz",
+    bankId: "isbankasi",
+    accountTail: "8821",
+    customer: "Havale — R. Yıldız",
+    date: daysAgoIso(3),
+    description: "Şahıs hesabından, fatura yok",
+    amount: 8_500,
+    reasonHint: "Şahıs hesabından, fatura yok",
+    candidates: [],
+  },
+  {
+    id: "rec-4",
+    transactionId: "txn-delta",
+    bankId: "yapikredi",
+    accountTail: "4155",
+    customer: "Delta Elektrik",
+    date: daysAgoIso(5),
+    description: "Fatura tutarı ₺31.000 — ₺75 fark",
+    amount: -31_075,
+    reasonHint: "Fatura tutarı ₺31.000 — ₺75 fark",
+    candidates: [
+      { id: "cand-5", label: "FTR-2026-1122 · Delta Elektrik", detail: "2 Tem · e-Fatura", matchScore: 91, amount: 31_000 },
+    ],
+  },
+  {
+    id: "rec-5",
+    transactionId: "txn-hepsiburada",
+    bankId: "ziraat",
+    accountTail: "0122",
+    customer: "POS iade — Hepsiburada",
+    date: daysAgoIso(6),
+    description: "İade kaydı bulunamadı",
+    amount: -2_149,
+    reasonHint: "İade kaydı bulunamadı",
+    candidates: [],
+  },
+];
+
+export const CASH_FLOW_30D: CashFlowPoint[] = Array.from({ length: 30 }, (_, i) => {
+  const base = 55_000 + Math.sin(i / 4) * 18_000 + rand() * 6_000;
+  return {
+    date: daysAgoIso(29 - i),
+    incoming: Math.round(base + 20_000),
+    outgoing: Math.round(base * 0.78),
+  };
+});
+
+export const CASH_FLOW_FORECAST: CashFlowForecastPoint[] = (() => {
+  const points: CashFlowForecastPoint[] = [];
+  const today = new Date("2026-07-17T00:00:00+03:00");
+  for (let i = -30; i <= 0; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    points.push({ date: d.toISOString(), actual: TOTAL_BALANCE - i * 3200 + Math.sin(i / 3) * 40_000 });
+  }
+  const dips = [0.94, 0.86, 0.77, 0.71, 0.69, 0.72, 0.79, 0.88, 0.97, 1.05, 1.1];
+  for (let i = 1; i <= 30; i++) {
+    const d = new Date(today);
+    d.setDate(d.getDate() + i);
+    const factor = i <= 11 ? dips[i - 1] : 1.1 + (i - 11) * 0.006;
+    const forecast = TOTAL_BALANCE * factor;
+    points.push({
+      date: d.toISOString(),
+      forecast,
+      bandLow: forecast * 0.93,
+      bandHigh: forecast * 1.07,
+    });
+  }
+  return points;
+})();
+
+export const EXPECTED_INCOMING: ExpectedCashItem[] = [
+  { id: "in-1", label: "Karadeniz Gıda Toptan", subLabel: "Düzenli · her ayın 17'si", amount: 42_000, date: "17 Ağu" },
+  { id: "in-2", label: "Beyaz Ofis Kırtasiye", subLabel: "POS ort. günlük", amount: 11_500, date: "günlük" },
+  { id: "in-3", label: "Ege Market Zinciri", subLabel: "Vadeli fatura FTR-1198", amount: 96_000, date: "28 Tem" },
+  { id: "in-4", label: "Doğuş İnşaat hakediş", subLabel: "Sözleşme · 45 gün vade", amount: 210_000, date: "9 Ağu" },
+];
+
+export const EXPECTED_OUTGOING: ExpectedCashItem[] = [
+  { id: "out-1", label: "Maaş ödemeleri (14 kişi)", subLabel: "Her ayın 1'i", amount: -386_000, date: "1 Ağu" },
+  { id: "out-2", label: "KDV beyannamesi", subLabel: "Vergi takvimi", amount: -118_400, date: "26 Tem" },
+  { id: "out-3", label: "Kira — Merkez Depo", subLabel: "Her ayın 15'i", amount: -85_000, date: "15 Ağu" },
+  { id: "out-4", label: "Anadolu Ambalaj", subLabel: "Ort. aylık tedarik", amount: -180_000, date: "Ağu boyunca" },
+];
+
+export const REPORT_PACKAGES: ReportPackage[] = [
+  {
+    id: "rep-1",
+    period: "2026 · 2. Çeyrek",
+    status: "Mühürlü",
+    summary: "683 hareket · 4 banka · Logo Tiger mutabakat ekiyle · PDF 42 sayfa + Excel",
+    sha256: "8f3a…c91d",
+    generatedAt: "01 Tem 2026 09:14",
+  },
+  {
+    id: "rep-2",
+    period: "2026 · 1. Çeyrek",
+    status: "Mühürlü",
+    summary: "714 hareket · 4 banka · vergi denetimi için hazırlandı, YMM ile paylaşıldı",
+    sha256: "2b7e…04af",
+    generatedAt: "02 Nis 2026 10:02",
+  },
+  {
+    id: "rep-3",
+    period: "2025 · Yıllık",
+    status: "Arşiv",
+    summary: "2.841 hareket · e-Defter çapraz kontrol raporu dahil",
+    sha256: "e19c…77b2",
+    generatedAt: "05 Oca 2026 11:40",
+  },
+];
+
+export const CLIENTS: ClientSummary[] = [
+  { id: "cl-1", name: "Demir Ticaret A.Ş.", sector: "Toptan gıda", bankCount: 4, pendingExceptions: 12, consentStatus: "Uyarı", consentDetail: "5 gün", lastSync: "2 dk önce" },
+  { id: "cl-2", name: "Kaya Yapı Ltd.", sector: "İnşaat malzeme", bankCount: 3, pendingExceptions: 4, consentStatus: "Aktif", lastSync: "5 dk önce" },
+  { id: "cl-3", name: "Arel Elektronik", sector: "Perakende", bankCount: 2, pendingExceptions: 0, consentStatus: "Aktif", lastSync: "1 dk önce" },
+  { id: "cl-4", name: "Yıldız Tekstil San.", sector: "İmalat", bankCount: 5, pendingExceptions: 2, consentStatus: "Aktif", lastSync: "8 dk önce" },
+  { id: "cl-5", name: "Mavi Otel İşletmeleri", sector: "Turizm", bankCount: 3, pendingExceptions: 0, consentStatus: "Süresi doldu", lastSync: "3 gün önce" },
+  { id: "cl-6", name: "Çınar Lojistik", sector: "Taşımacılık", bankCount: 2, pendingExceptions: 1, consentStatus: "Aktif", lastSync: "şimdi" },
+];
+
+export const ASSISTANT_SUGGESTIONS = [
+  "Bu tedarikçiyle sözleşme ortalaması ne?",
+  "Temmuz tahmini gider?",
+  "En büyük 5 müşterim kim?",
+];
+
+export const ASSISTANT_HISTORY: AssistantExchange[] = [
+  {
+    id: "asst-1",
+    question: "Geçen ay Anadolu Ambalaj'a ne kadar ödedik?",
+    answeredAt: "Haziran 2026",
+    scannedAccounts: 3,
+    responseMs: 400,
+    answer:
+      "Haziran'da Anadolu Ambalaj San. Tic. A.Ş.'ye toplam ₺186.400,00 ödediniz — 4 işlemde, tamamı İş Bankası ****8821 hesabından. Mayıs'a göre %12 daha fazla.",
+    highlightAmount: "₺186.400,00",
+    highlightNote: "%12 daha fazla",
+    rows: [
+      { date: "3 Haz", channel: "EFT", ref: "FTR-2026-0981", amount: 46_600 },
+      { date: "10 Haz", channel: "EFT", ref: "FTR-2026-1004", amount: 46_600 },
+      { date: "19 Haz", channel: "EFT", ref: "FTR-2026-1055", amount: 52_400 },
+      { date: "27 Haz", channel: "EFT", ref: "FTR-2026-1090", amount: 40_800 },
+    ],
+  },
+];
+
+export const NOTIFICATION_SETTINGS: NotificationSetting[] = [
+  { id: "notif-1", title: "Günlük özet — WhatsApp", description: "Her sabah 08:30 · nakit durumu + dikkat gereken hareketler", enabled: true },
+  { id: "notif-2", title: "Günlük özet — e-posta", description: "selin@demirticaret.com.tr", enabled: true },
+  { id: "notif-3", title: "Anomali uyarıları", description: "Alışılmadık tutar veya yeni karşı taraf anında bildirilsin", enabled: true },
+  { id: "notif-4", title: "Rıza süresi hatırlatması", description: "Dolmadan 7, 3 ve 1 gün önce", enabled: true },
+  { id: "notif-5", title: "Her hareket için anlık bildirim", description: "Yoğun hesaplarda gürültü yaratabilir", enabled: false },
+];
+
+export const AVAILABLE_BANKS_TO_CONNECT: { id: BankId; name: string }[] = BANKS.map((b) => ({
+  id: b.id,
+  name: b.name,
+}));

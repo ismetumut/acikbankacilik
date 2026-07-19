@@ -1,0 +1,74 @@
+@import url("https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Schibsted+Grotesk:ital,wght@0,400..900;1,400..900&family=Noto+Sans:ital,wght@0,400..800;1,400..800&display=swap");
+@import "tailwindcss";
+
+@theme {
+  /* Noto Sans is appended as a fallback purely for full Turkish Lira (₺, U+20BA) glyph
+     coverage — Bricolage/Schibsted's default Google Fonts subsets omit the currency block. */
+  --font-display: "Bricolage Grotesque", "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-sans: "Schibsted Grotesk", "Noto Sans", ui-sans-serif, system-ui, sans-serif;
+
+  --color-ink-950: #0e2a21;
+  --color-ink-900: #14372c;
+  --color-ink-800: #1c4838;
+  --color-ink-700: #245a46;
+
+  --color-brand-600: #175e4c;
+  --color-brand-500: #1f7a5c;
+  --color-brand-400: #4fbf97;
+  --color-brand-100: #dcefe4;
+  --color-brand-50: #eef6f0;
+
+  --color-cream-100: #f4f2ec;
+  --color-cream-200: #ece8de;
+
+  --color-line: #e4e0d4;
+  --color-line-dark: #2a4c3f;
+
+  --color-negative-700: #9a3324;
+  --color-negative-100: #f8e2dd;
+
+  --color-warning-700: #92400e;
+  --color-warning-100: #f5e6c8;
+
+  --color-muted: #7a7568;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--color-cream-100);
+  color: #1c1a15;
+  font-family: var(--font-sans);
+  font-feature-settings: "tnum" 1;
+  -webkit-font-smoothing: antialiased;
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+::selection {
+  background: var(--color-brand-400);
+  color: var(--color-ink-950);
+}
+
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+.scrollbar-thin {
+  scrollbar-width: thin;
+}
+
+.input {
+  @apply w-full rounded-lg border border-line bg-white px-3 py-2 text-sm text-ink-900 focus:border-brand-400 focus:outline-none;
+}
