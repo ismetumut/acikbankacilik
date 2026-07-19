@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis } from "recharts";
 import { useBanking } from "@/banking/context";
+import { useCompany, isConsolidated } from "@/company/context";
 import { useAsync } from "@/lib/useAsync";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
@@ -8,17 +9,23 @@ import { BankAvatar } from "@/components/ui/BankAvatar";
 import { Button } from "@/components/ui/Button";
 import { LoadingRows, Skeleton } from "@/components/ui/Skeleton";
 import { formatDateTime, formatRelative, formatSignedCurrency } from "@/lib/format";
-import { ANOMALY, DEMO_NOW, TOTAL_BALANCE, bankOf } from "@/lib/mockData";
+import { ANOMALY, DEMO_NOW, bankOf, companyOf, convertToTRY, totalBalanceFor } from "@/lib/mockData";
 import { useState } from "react";
 
 export function Overview() {
   const banking = useBanking();
-  const { data: accounts, loading: accountsLoading } = useAsync(() => banking.getAccounts(), []);
-  const { data: txPage } = useAsync(() => banking.getTransactions({ page: 1, pageSize: 5 }), []);
+  const { companyId } = useCompany();
+  const { data: accounts, loading: accountsLoading } = useAsync(() => banking.getAccounts(companyId), [companyId]);
+  const { data: txPage } = useAsync(
+    () => banking.getTransactions({ page: 1, pageSize: 5, companyId }),
+    [companyId],
+  );
   const { data: cashFlow } = useAsync(() => banking.getCashFlow30d(), []);
   const { data: exceptions } = useAsync(() => banking.getReconciliationExceptions(), []);
   const { data: consents } = useAsync(() => banking.getConsents(), []);
   const [anomalyDismissed, setAnomalyDismissed] = useState(false);
+
+  const scopeLabel = isConsolidated(companyId) ? "Tüm grup" : (companyOf(companyId)?.shortName ?? "");
 
   const warningConsents = consents?.filter((c) => c.status === "expiring" || c.status === "expired") ?? [];
   const expiringConsent = warningConsents[0];
@@ -26,10 +33,12 @@ export function Overview() {
     ? Math.max(0, Math.round((new Date(expiringConsent.expiresAt).getTime() - DEMO_NOW.getTime()) / 86_400_000))
     : 0;
 
+  const totalBalance = accounts ? totalBalanceFor(accounts) : 0;
+
   const byBank = new Map<string, { balance: number; count: number; lastSync: string }>();
   accounts?.forEach((a) => {
     const entry = byBank.get(a.bankId) ?? { balance: 0, count: 0, lastSync: a.lastSync };
-    entry.balance += a.currency === "TRY" ? a.balance : 0;
+    entry.balance += convertToTRY(a.balance, a.currency);
     entry.count += 1;
     if (new Date(a.lastSync) > new Date(entry.lastSync)) entry.lastSync = a.lastSync;
     byBank.set(a.bankId, entry);
@@ -46,10 +55,10 @@ export function Overview() {
       <div className="space-y-6">
         <Card className="bg-ink-900 text-white">
           <p className="text-xs font-semibold uppercase tracking-wide text-white/50">
-            Toplam bakiye · {accounts?.length ?? "…"} hesap
+            Toplam bakiye · {scopeLabel} · {accounts?.length ?? "…"} hesap
           </p>
           <div className="mt-2 flex flex-wrap items-end gap-x-3 gap-y-2">
-            <Money value={TOTAL_BALANCE} size="xl" className="text-white" />
+            <Money value={totalBalance} size="xl" className="text-white" />
             <span className="mb-1.5 flex shrink-0 items-center gap-1 rounded-full bg-brand-400/20 px-2.5 py-1 text-xs font-bold text-brand-400">
               ▲ ₺124.500 bu hafta
             </span>

@@ -6,7 +6,9 @@ import type {
   CashFlowForecastPoint,
   CashFlowPoint,
   ClientSummary,
+  Company,
   ConsentGrant,
+  Currency,
   ExpectedCashItem,
   NotificationSetting,
   OverdueReceivable,
@@ -58,6 +60,47 @@ export const COMPANY = {
   userRole: "Yönetici",
 };
 
+/** Sentinel companyId meaning "every group company, consolidated". */
+export const ALL_COMPANIES = "all" as const;
+
+export const COMPANIES: Company[] = [
+  { id: "demir-ticaret", name: "Demir Ticaret A.Ş.", shortName: "Demir Ticaret", sector: "Toptan gıda" },
+  { id: "demir-lojistik", name: "Demir Lojistik A.Ş.", shortName: "Demir Lojistik", sector: "Taşımacılık" },
+  { id: "demir-yapi", name: "Demir Yapı Malzemeleri Ltd.", shortName: "Demir Yapı", sector: "İnşaat malzeme" },
+];
+
+export function companyOf(id: string): Company | undefined {
+  return COMPANIES.find((c) => c.id === id);
+}
+
+/** TRY per 1 unit of foreign currency — mid-market, for consolidating group balances. */
+export const FX_RATES_TO_TRY: Record<Exclude<Currency, "TRY">, number> = {
+  USD: 41.135,
+  EUR: 44.7,
+  GBP: 52.205,
+};
+
+export const CURRENCY_SYMBOLS: Record<Currency, string> = {
+  TRY: "₺",
+  USD: "$",
+  EUR: "€",
+  GBP: "£",
+};
+
+export function convertToTRY(amount: number, currency: Currency): number {
+  if (currency === "TRY") return amount;
+  return amount * FX_RATES_TO_TRY[currency];
+}
+
+export function convertFromTRY(amountInTRY: number, target: Currency): number {
+  if (target === "TRY") return amountInTRY;
+  return amountInTRY / FX_RATES_TO_TRY[target];
+}
+
+export function convertCurrency(amount: number, from: Currency, to: Currency): number {
+  return convertFromTRY(convertToTRY(amount, from), to);
+}
+
 export const BANKS: Bank[] = [
   { id: "ziraat", name: "Ziraat Bankası", shortName: "Ziraat", initials: "Z", colorHex: "#B4231E" },
   { id: "isbankasi", name: "Türkiye İş Bankası", shortName: "İş Bankası", initials: "İŞ", colorHex: "#1B2A63" },
@@ -72,6 +115,7 @@ export function bankOf(id: BankId): Bank {
 export const ACCOUNTS: Account[] = [
   {
     id: "acc-ziraat-vadesiz",
+    companyId: "demir-ticaret",
     bankId: "ziraat",
     label: "Ziraat — Vadesiz TL",
     subLabel: "Ana hesap",
@@ -84,6 +128,7 @@ export const ACCOUNTS: Account[] = [
   },
   {
     id: "acc-ziraat-pos",
+    companyId: "demir-ticaret",
     bankId: "ziraat",
     label: "Ziraat — POS Hesabı",
     subLabel: "Tahsilat",
@@ -96,6 +141,7 @@ export const ACCOUNTS: Account[] = [
   },
   {
     id: "acc-is-vadesiz",
+    companyId: "demir-ticaret",
     bankId: "isbankasi",
     label: "İş Bankası — Vadesiz TL",
     subLabel: "Operasyon",
@@ -108,6 +154,7 @@ export const ACCOUNTS: Account[] = [
   },
   {
     id: "acc-is-doviz",
+    companyId: "demir-ticaret",
     bankId: "isbankasi",
     label: "İş Bankası — Döviz (USD)",
     subLabel: "Döviz",
@@ -120,6 +167,7 @@ export const ACCOUNTS: Account[] = [
   },
   {
     id: "acc-garanti-vadesiz",
+    companyId: "demir-ticaret",
     bankId: "garanti",
     label: "Garanti BBVA — Vadesiz TL",
     subLabel: "Operasyon · ek hesap",
@@ -133,6 +181,7 @@ export const ACCOUNTS: Account[] = [
   },
   {
     id: "acc-yapikredi-vadesiz",
+    companyId: "demir-ticaret",
     bankId: "yapikredi",
     label: "Yapı Kredi — Vadesiz TL",
     subLabel: "POS + operasyon",
@@ -143,12 +192,68 @@ export const ACCOUNTS: Account[] = [
     lastSync: daysAgoIso(0, 12, 4),
     kind: "vadesiz",
   },
+  {
+    id: "acc-lojistik-try",
+    companyId: "demir-lojistik",
+    bankId: "isbankasi",
+    label: "İş Bankası — Vadesiz TL",
+    subLabel: "Demir Lojistik operasyon",
+    iban: "TR64 0006 4000 0033 7788 9911 05",
+    currency: "TRY",
+    balance: 312_540,
+    availableBalance: 312_540,
+    lastSync: daysAgoIso(0, 10, 20),
+    kind: "vadesiz",
+  },
+  {
+    id: "acc-lojistik-eur",
+    companyId: "demir-lojistik",
+    bankId: "isbankasi",
+    label: "İş Bankası — Döviz (EUR)",
+    subLabel: "Demir Lojistik · Avrupa hattı",
+    iban: "TR64 0006 4000 0033 7788 9911 06",
+    currency: "EUR",
+    balance: 18_400,
+    availableBalance: 18_400,
+    lastSync: daysAgoIso(0, 10, 20),
+    kind: "doviz",
+  },
+  {
+    id: "acc-yapi-try",
+    companyId: "demir-yapi",
+    bankId: "garanti",
+    label: "Garanti BBVA — Vadesiz TL",
+    subLabel: "Demir Yapı operasyon",
+    iban: "TR63 0006 2000 1234 0007 4471 12",
+    currency: "TRY",
+    balance: 204_860,
+    availableBalance: 204_860,
+    lastSync: daysAgoIso(0, 9, 45),
+    kind: "vadesiz",
+  },
+  {
+    id: "acc-yapi-gbp",
+    companyId: "demir-yapi",
+    bankId: "garanti",
+    label: "Garanti BBVA — Döviz (GBP)",
+    subLabel: "Demir Yapı · ithalat",
+    iban: "TR63 0006 2000 1234 0007 4471 13",
+    currency: "GBP",
+    balance: 6_250,
+    availableBalance: 6_250,
+    lastSync: daysAgoIso(0, 9, 45),
+    kind: "doviz",
+  },
 ];
 
-export const TOTAL_BALANCE = ACCOUNTS.filter((a) => a.currency === "TRY").reduce(
-  (sum, a) => sum + a.balance,
-  0,
-);
+export const TOTAL_BALANCE = ACCOUNTS.filter(
+  (a) => a.companyId === "demir-ticaret" && a.currency === "TRY",
+).reduce((sum, a) => sum + a.balance, 0);
+
+/** Consolidated TRY-equivalent balance across every group company and currency. */
+export function totalBalanceFor(accounts: Account[]): number {
+  return accounts.reduce((sum, a) => sum + convertToTRY(a.balance, a.currency), 0);
+}
 
 const COUNTERPARTIES: { name: string; category: TransactionCategory; channel: Transaction["channel"] }[] = [
   { name: "Karadeniz Gıda Toptan", category: "Tahsilat", channel: "FAST" },
@@ -170,7 +275,7 @@ function buildTransactions(count: number): Transaction[] {
   let dayCursor = 0;
   for (let i = 0; i < count; i++) {
     dayCursor += rand() < 0.6 ? 0 : 1;
-    const account = pick(ACCOUNTS.filter((a) => a.currency === "TRY"));
+    const account = pick(ACCOUNTS.filter((a) => a.currency === "TRY" && a.companyId === "demir-ticaret"));
     const template = pick(COUNTERPARTIES);
     const isIncoming = template.category === "Tahsilat";
     const amount = isIncoming
@@ -381,6 +486,111 @@ export const TRANSACTIONS: Transaction[] = [
     category: "Virman",
     amount: 75_000,
     balanceAfter: 247_460,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-lojistik-0001",
+    bankId: "isbankasi",
+    accountId: "acc-lojistik-try",
+    date: daysAgoIso(1, 8, 30),
+    counterparty: "Petrol Ofisi Filo",
+    description: "Otomatik ödeme talimatı · filo yakıt",
+    channel: "Otomatik Talimat",
+    category: "Tedarikçi",
+    amount: -64_200,
+    balanceAfter: 312_540,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-lojistik-0002",
+    bankId: "isbankasi",
+    accountId: "acc-lojistik-try",
+    date: daysAgoIso(2, 15, 10),
+    counterparty: "Marmara Nakliyat Müşteri",
+    description: 'FAST · "navlun tahsilatı 2026-7"',
+    channel: "FAST",
+    category: "Tahsilat",
+    amount: 118_400,
+    balanceAfter: 376_740,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-lojistik-0003",
+    bankId: "isbankasi",
+    accountId: "acc-lojistik-try",
+    date: daysAgoIso(4, 14, 0),
+    counterparty: "Sürücü Maaş Ödemesi",
+    description: "Maaş ödemesi · 9 sürücü",
+    channel: "EFT",
+    category: "Maaş",
+    amount: -142_000,
+    balanceAfter: 258_340,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-lojistik-0004",
+    bankId: "isbankasi",
+    accountId: "acc-lojistik-eur",
+    date: daysAgoIso(3, 11, 20),
+    counterparty: "EuroTrans Spedition GmbH",
+    description: "EFT · Avrupa hattı navlun ödemesi",
+    channel: "EFT",
+    category: "Tedarikçi",
+    amount: -6_800,
+    balanceAfter: 18_400,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-yapi-0001",
+    bankId: "garanti",
+    accountId: "acc-yapi-try",
+    date: daysAgoIso(1, 10, 45),
+    counterparty: "Akçansa Çimento",
+    description: "EFT · Çimento tedarik · FTR-2026-YP04",
+    channel: "EFT",
+    reference: "FTR-2026-YP04",
+    category: "Tedarikçi",
+    amount: -88_500,
+    balanceAfter: 204_860,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-yapi-0002",
+    bankId: "garanti",
+    accountId: "acc-yapi-try",
+    date: daysAgoIso(2, 16, 30),
+    counterparty: "Yıldız İnşaat Müşteri",
+    description: 'FAST · "hakediş ödemesi"',
+    channel: "FAST",
+    category: "Tahsilat",
+    amount: 156_000,
+    balanceAfter: 293_360,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-yapi-0003",
+    bankId: "garanti",
+    accountId: "acc-yapi-try",
+    date: daysAgoIso(5, 8, 0),
+    counterparty: "Depo Kirası",
+    description: "Kira — antrepo · düzenli ödeme",
+    channel: "Otomatik Talimat",
+    category: "Kira",
+    amount: -34_000,
+    balanceAfter: 137_360,
+    accountingStatus: "Aktarıldı",
+  },
+  {
+    id: "txn-yapi-0004",
+    bankId: "garanti",
+    accountId: "acc-yapi-gbp",
+    date: daysAgoIso(4, 9, 15),
+    counterparty: "Bristol Building Supplies Ltd.",
+    description: "EFT · İngiltere ithalat ödemesi",
+    channel: "EFT",
+    category: "Tedarikçi",
+    amount: -2_150,
+    balanceAfter: 6_250,
     accountingStatus: "Aktarıldı",
   },
   ...buildTransactions(673),

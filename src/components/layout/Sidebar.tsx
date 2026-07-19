@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { NavLink } from "react-router-dom";
 import { NAV_GROUPS } from "./nav";
 import { InitialsAvatar } from "@/components/ui/BankAvatar";
-import { COMPANY } from "@/lib/mockData";
+import { ALL_COMPANIES, COMPANIES, COMPANY, companyOf } from "@/lib/mockData";
 import { useBanking } from "@/banking/context";
+import { useCompany } from "@/company/context";
 import { useAsync } from "@/lib/useAsync";
 
 interface Props {
@@ -10,8 +12,19 @@ interface Props {
   onClose: () => void;
 }
 
+function initialsOf(name: string) {
+  return name
+    .split(" ")
+    .slice(0, 2)
+    .map((w) => w[0])
+    .join("")
+    .toUpperCase();
+}
+
 export function Sidebar({ open, onClose }: Props) {
   const banking = useBanking();
+  const { companyId, setCompanyId } = useCompany();
+  const [switcherOpen, setSwitcherOpen] = useState(false);
   const { data: approvals } = useAsync(() => banking.getPendingApprovals(), []);
   const { data: exceptions } = useAsync(() => banking.getReconciliationExceptions(), []);
   const { data: consents } = useAsync(() => banking.getConsents(), []);
@@ -22,15 +35,13 @@ export function Sidebar({ open, onClose }: Props) {
     consents: consents?.filter((c) => c.status === "expiring" || c.status === "expired").length,
   };
 
+  const activeCompany = companyOf(companyId);
+  const footerName = companyId === ALL_COMPANIES ? "Tüm grup" : (activeCompany?.name ?? COMPANY.name);
+  const footerInitials = companyId === ALL_COMPANIES ? "TG" : initialsOf(activeCompany?.name ?? COMPANY.name);
+
   return (
     <>
-      {open && (
-        <div
-          className="fixed inset-0 z-30 bg-ink-950/50 lg:hidden"
-          onClick={onClose}
-          aria-hidden="true"
-        />
-      )}
+      {open && <div className="fixed inset-0 z-30 bg-ink-950/50 lg:hidden" onClick={onClose} aria-hidden="true" />}
 
       <aside
         className={`fixed inset-y-0 left-0 z-40 flex h-full w-[248px] shrink-0 -translate-x-full flex-col bg-ink-900 px-4 py-6 text-white/90 transition-transform duration-200 lg:static lg:z-auto lg:translate-x-0 ${
@@ -91,12 +102,63 @@ export function Sidebar({ open, onClose }: Props) {
           ))}
         </nav>
 
-        <div className="mt-4 flex items-center gap-2.5 border-t border-white/10 px-2 pt-4">
-          <InitialsAvatar initials={COMPANY.userInitials} />
-          <div className="min-w-0">
-            <p className="truncate text-[13px] font-bold text-white">{COMPANY.userName}</p>
-            <p className="truncate text-[11.5px] text-white/50">{COMPANY.name}</p>
-          </div>
+        <div className="relative mt-4 border-t border-white/10 pt-4">
+          {switcherOpen && (
+            <>
+              <div className="fixed inset-0 z-40" onClick={() => setSwitcherOpen(false)} aria-hidden="true" />
+              <div className="absolute bottom-full left-2 right-2 z-50 mb-2 overflow-hidden rounded-xl border border-white/10 bg-ink-800 shadow-lg">
+                <p className="px-3 pt-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-white/40">
+                  Grup şirketleri
+                </p>
+                {COMPANIES.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => {
+                      setCompanyId(c.id);
+                      setSwitcherOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2.5 px-3 py-2 text-left text-[13px] transition-colors hover:bg-white/10 ${
+                      companyId === c.id ? "text-white font-bold" : "text-white/75"
+                    }`}
+                  >
+                    <InitialsAvatar initials={initialsOf(c.name)} size="sm" />
+                    <span className="min-w-0 flex-1 truncate">{c.name}</span>
+                    {companyId === c.id && <span className="text-brand-400">✓</span>}
+                  </button>
+                ))}
+                <div className="border-t border-white/10">
+                  <button
+                    onClick={() => {
+                      setCompanyId(ALL_COMPANIES);
+                      setSwitcherOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2.5 px-3 py-2.5 text-left text-[13px] transition-colors hover:bg-white/10 ${
+                      companyId === ALL_COMPANIES ? "text-white font-bold" : "text-white/75"
+                    }`}
+                  >
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand-400/20 text-xs font-bold text-brand-400">
+                      TG
+                    </span>
+                    <span className="flex-1">Tüm grup (konsolide)</span>
+                    {companyId === ALL_COMPANIES && <span className="text-brand-400">✓</span>}
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+
+          <button
+            type="button"
+            onClick={() => setSwitcherOpen((v) => !v)}
+            className="flex w-full items-center gap-2.5 rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
+          >
+            <InitialsAvatar initials={footerInitials} />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[13px] font-bold text-white">{COMPANY.userName}</p>
+              <p className="truncate text-[11.5px] text-white/50">{footerName}</p>
+            </div>
+            <span className="text-white/40">⌄</span>
+          </button>
         </div>
       </aside>
     </>

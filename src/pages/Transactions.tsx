@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useBanking } from "@/banking/context";
+import { useCompany } from "@/company/context";
 import { useAsync } from "@/lib/useAsync";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { Badge } from "@/components/ui/Badge";
@@ -11,7 +12,7 @@ import { Pagination } from "@/components/ui/Pagination";
 import { LoadingRows } from "@/components/ui/Skeleton";
 import { Toggle } from "@/components/ui/Toggle";
 import { formatDateTime } from "@/lib/format";
-import { BANKS } from "@/lib/mockData";
+import { BANKS, CURRENCY_SYMBOLS } from "@/lib/mockData";
 import type { AccountingStatus, BankId } from "@/lib/types";
 
 const CATEGORIES = ["Tahsilat", "Vergi & SGK", "Tedarikçi", "Kira", "Maaş", "Döviz", "Virman", "Eşleşmedi"];
@@ -24,6 +25,7 @@ const STATUS_TONE: Record<AccountingStatus, "positive" | "warning" | "negative">
 
 export function Transactions() {
   const banking = useBanking();
+  const { companyId } = useCompany();
   const [searchParams] = useSearchParams();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState(searchParams.get("q") ?? "");
@@ -31,6 +33,10 @@ export function Transactions() {
   const [category, setCategory] = useState("");
   const [hideVirman, setHideVirman] = useState(true);
   const pageSize = 10;
+
+  const { data: accounts } = useAsync(() => banking.getAccounts(companyId), [companyId]);
+  const bankCount = accounts ? new Set(accounts.map((a) => a.bankId)).size : undefined;
+  const accountsById = new Map((accounts ?? []).map((a) => [a.id, a]));
 
   const { data, loading } = useAsync(
     () =>
@@ -41,8 +47,9 @@ export function Transactions() {
         bankId: bankId || undefined,
         category: category || undefined,
         hideVirman: category === "Virman" ? false : hideVirman,
+        companyId,
       }),
-    [page, search, bankId, category, hideVirman],
+    [page, search, bankId, category, hideVirman, companyId],
   );
 
   function clearFilters() {
@@ -140,7 +147,7 @@ export function Transactions() {
           <div>
             <CardTitle>Hesap hareketleri</CardTitle>
             <p className="text-xs text-muted">
-              {data?.total ?? "…"} kayıt · 4 banka · son senkron şimdi
+              {data?.total ?? "…"} kayıt · {bankCount ?? "…"} banka · son senkron şimdi
             </p>
           </div>
           <div className="flex gap-2">
@@ -175,35 +182,42 @@ export function Transactions() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line">
-                  {data.items.map((t) => (
-                    <tr key={t.id} className="align-middle">
-                      <td className="py-3 pr-3">
-                        <div className="flex items-center gap-2">
-                          <BankAvatar bankId={t.bankId} size="sm" />
-                          <span className="text-xs font-semibold text-ink-900/80">
-                            {BANKS.find((b) => b.id === t.bankId)?.shortName}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="py-3 pr-3 whitespace-nowrap text-xs text-muted">{formatDateTime(t.date)}</td>
-                      <td className="py-3 pr-3 max-w-[260px] truncate font-medium text-ink-900">{t.description}</td>
-                      <td className="py-3 pr-3">
-                        <Badge tone={t.category === "Eşleşmedi" ? "warning" : t.category === "Virman" ? "brand" : "neutral"}>
-                          {t.category}
-                        </Badge>
-                      </td>
-                      <td className="py-3 pr-3 text-right">
-                        <Money value={t.amount} signed size="sm" colorize />
-                      </td>
-                      <td className="py-3 pr-3 text-right text-xs tabular text-muted">
-                        ₺{t.balanceAfter.toLocaleString("tr-TR")}
-                      </td>
-                      <td className="py-3 pr-3 whitespace-nowrap text-xs text-muted">Vadesiz TL</td>
-                      <td className="py-3">
-                        <Badge tone={STATUS_TONE[t.accountingStatus]}>{t.accountingStatus}</Badge>
-                      </td>
-                    </tr>
-                  ))}
+                  {data.items.map((t) => {
+                    const account = accountsById.get(t.accountId);
+                    const symbol = account ? CURRENCY_SYMBOLS[account.currency] : "₺";
+                    return (
+                      <tr key={t.id} className="align-middle">
+                        <td className="py-3 pr-3">
+                          <div className="flex items-center gap-2">
+                            <BankAvatar bankId={t.bankId} size="sm" />
+                            <span className="text-xs font-semibold text-ink-900/80">
+                              {BANKS.find((b) => b.id === t.bankId)?.shortName}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="py-3 pr-3 whitespace-nowrap text-xs text-muted">{formatDateTime(t.date)}</td>
+                        <td className="py-3 pr-3 max-w-[260px] truncate font-medium text-ink-900">{t.description}</td>
+                        <td className="py-3 pr-3">
+                          <Badge tone={t.category === "Eşleşmedi" ? "warning" : t.category === "Virman" ? "brand" : "neutral"}>
+                            {t.category}
+                          </Badge>
+                        </td>
+                        <td className="py-3 pr-3 text-right">
+                          <Money value={t.amount} signed size="sm" colorize currencySymbol={symbol} />
+                        </td>
+                        <td className="py-3 pr-3 text-right text-xs tabular text-muted">
+                          {symbol}
+                          {t.balanceAfter.toLocaleString("tr-TR")}
+                        </td>
+                        <td className="py-3 pr-3 whitespace-nowrap text-xs text-muted">
+                          {account?.label.split(" — ")[1] ?? account?.label ?? "—"}
+                        </td>
+                        <td className="py-3">
+                          <Badge tone={STATUS_TONE[t.accountingStatus]}>{t.accountingStatus}</Badge>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>

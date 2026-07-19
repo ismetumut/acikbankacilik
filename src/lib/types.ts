@@ -8,13 +8,23 @@ export interface Bank {
   colorHex: string;
 }
 
+export type Currency = "TRY" | "USD" | "EUR" | "GBP";
+
+export interface Company {
+  id: string;
+  name: string;
+  shortName: string;
+  sector: string;
+}
+
 export interface Account {
   id: string;
+  companyId: string;
   bankId: BankId;
   label: string;
   subLabel: string;
   iban: string;
-  currency: "TRY" | "USD" | "EUR" | "GBP";
+  currency: Currency;
   balance: number;
   availableBalance: number;
   lastSync: string; // ISO timestamp

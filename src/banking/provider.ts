@@ -24,6 +24,7 @@ export interface TransactionQuery {
   category?: string;
   search?: string;
   hideVirman?: boolean;
+  companyId?: string;
 }
 
 export interface TransactionPage {
@@ -60,7 +61,7 @@ export interface NewPaymentLinkInput {
  * page/component needs to change. See README.md "Gerçek banka entegrasyonu".
  */
 export interface BankingProvider {
-  getAccounts(): Promise<Account[]>;
+  getAccounts(companyId?: string): Promise<Account[]>;
   getTransactions(query: TransactionQuery): Promise<TransactionPage>;
 
   getConsents(): Promise<ConsentGrant[]>;

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useBanking } from "@/banking/context";
+import { useCompany } from "@/company/context";
 import { useAsync } from "@/lib/useAsync";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
@@ -9,12 +10,14 @@ import { BankAvatar } from "@/components/ui/BankAvatar";
 import { Money } from "@/components/ui/Money";
 import { LoadingRows } from "@/components/ui/Skeleton";
 import { formatCurrency } from "@/lib/format";
+import { CURRENCY_SYMBOLS } from "@/lib/mockData";
 
 const CHANNELS = ["FAST", "EFT", "Havale"] as const;
 
 export function PaymentInitiation() {
   const banking = useBanking();
-  const { data: accounts } = useAsync(() => banking.getAccounts(), []);
+  const { companyId } = useCompany();
+  const { data: accounts } = useAsync(() => banking.getAccounts(companyId), [companyId]);
   const { data: approvals, refetch: refetchApprovals } = useAsync(() => banking.getPendingApprovals(), []);
   const { data: payments, refetch: refetchPayments } = useAsync(() => banking.getRecentPayments(), []);
 
@@ -80,7 +83,8 @@ export function PaymentInitiation() {
                 <option value="">Hesap seçin</option>
                 {accounts?.map((a) => (
                   <option key={a.id} value={a.id}>
-                    {a.label} · {formatCurrency(a.balance, { withDecimals: false })}
+                    {a.label} · {CURRENCY_SYMBOLS[a.currency]}
+                    {a.balance.toLocaleString("tr-TR")}
                   </option>
                 ))}
               </select>

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useBanking } from "@/banking/context";
+import { useCompany } from "@/company/context";
 import { useAsync } from "@/lib/useAsync";
 
 const ROUTE_TITLES: Record<string, string> = {
@@ -23,7 +24,8 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const banking = useBanking();
-  const { data: accounts } = useAsync(() => banking.getAccounts(), []);
+  const { companyId } = useCompany();
+  const { data: accounts } = useAsync(() => banking.getAccounts(companyId), [companyId]);
   const [query, setQuery] = useState("");
 
   const title = ROUTE_TITLES[location.pathname] ?? "Akort";

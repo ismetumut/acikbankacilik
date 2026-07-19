@@ -16,6 +16,7 @@ import type {
 } from "@/lib/types";
 import {
   ACCOUNTS,
+  ALL_COMPANIES,
   ASSISTANT_HISTORY,
   ASSISTANT_SUGGESTIONS,
   CASH_FLOW_30D,
@@ -61,14 +62,21 @@ let notificationSettings = [...NOTIFICATION_SETTINGS];
 let assistantHistory = [...ASSISTANT_HISTORY];
 
 export class MockBankingProvider implements BankingProvider {
-  async getAccounts(): Promise<Account[]> {
-    return delay(accounts);
+  async getAccounts(companyId?: string): Promise<Account[]> {
+    if (!companyId || companyId === ALL_COMPANIES) return delay(accounts);
+    return delay(accounts.filter((a) => a.companyId === companyId));
   }
 
   async getTransactions(query: TransactionQuery): Promise<TransactionPage> {
     const page = query.page ?? 1;
     const pageSize = query.pageSize ?? 10;
     let items = transactions;
+    if (query.companyId && query.companyId !== ALL_COMPANIES) {
+      const scopedAccountIds = new Set(
+        accounts.filter((a) => a.companyId === query.companyId).map((a) => a.id),
+      );
+      items = items.filter((t) => scopedAccountIds.has(t.accountId));
+    }
     if (query.bankId) items = items.filter((t) => t.bankId === query.bankId);
     if (query.category) items = items.filter((t) => t.category === query.category);
     if (query.hideVirman) items = items.filter((t) => t.category !== "Virman");

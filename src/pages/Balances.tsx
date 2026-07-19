@@ -1,32 +1,48 @@
 import { useMemo, useState } from "react";
 import { Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
 import { useBanking } from "@/banking/context";
+import { useCompany, isConsolidated } from "@/company/context";
 import { useAsync } from "@/lib/useAsync";
 import { Card, CardTitle } from "@/components/ui/Card";
 import { Money } from "@/components/ui/Money";
 import { BankAvatar } from "@/components/ui/BankAvatar";
 import { LoadingRows, Skeleton } from "@/components/ui/Skeleton";
-import { BANKS, CASH_FLOW_30D } from "@/lib/mockData";
+import { BANKS, CURRENCY_SYMBOLS, FX_RATES_TO_TRY, companyOf, convertFromTRY, convertToTRY } from "@/lib/mockData";
 import { formatRelative } from "@/lib/format";
+import type { Currency } from "@/lib/types";
 
-const CURRENCIES = ["TRY", "USD", "EUR", "GBP"] as const;
-const RATES = { USD: "41,08 / 41,19", EUR: "44,63 / 44,77", GBP: "52,10 / 52,31" };
+const CURRENCIES: Currency[] = ["TRY", "USD", "EUR", "GBP"];
 const DONUT_COLORS = ["#B4231E", "#1B2A63", "#0C6B41", "#1E3A6E"];
+
+function formatRate(rate: number): string {
+  const buy = (rate * 0.9985).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sell = (rate * 1.0015).toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${buy} / ${sell}`;
+}
 
 export function Balances() {
   const banking = useBanking();
-  const [currency, setCurrency] = useState<(typeof CURRENCIES)[number]>("TRY");
-  const { data: accounts, loading } = useAsync(() => banking.getAccounts(), []);
+  const { companyId } = useCompany();
+  const [currency, setCurrency] = useState<Currency>("TRY");
+  const { data: accounts, loading } = useAsync(() => banking.getAccounts(companyId), [companyId]);
 
-  const tryAccounts = accounts?.filter((a) => a.currency === "TRY") ?? [];
-  const nakit = tryAccounts.filter((a) => a.kind !== "ekhesap").reduce((s, a) => s + a.balance, 0);
-  const ekHesap = tryAccounts.filter((a) => a.overdraftLimit).reduce((s, a) => s - a.overdraftLimit!, 0);
+  const scopeLabel = isConsolidated(companyId) ? "Tüm grup" : (companyOf(companyId)?.shortName ?? "");
+  const symbol = CURRENCY_SYMBOLS[currency];
+
+  const nakitTRY = (accounts ?? [])
+    .filter((a) => a.kind !== "ekhesap")
+    .reduce((s, a) => s + convertToTRY(a.balance, a.currency), 0);
+  const ekHesapTRY = (accounts ?? [])
+    .filter((a) => a.overdraftLimit)
+    .reduce((s, a) => s - convertToTRY(a.overdraftLimit!, a.currency), 0);
+  const nakit = convertFromTRY(nakitTRY, currency);
+  const ekHesap = convertFromTRY(ekHesapTRY, currency);
   const net = nakit + ekHesap;
 
   const distribution = useMemo(() => {
     if (!accounts) return [];
     const byBank = new Map<string, number>();
-    tryAccounts.forEach((a) => byBank.set(a.bankId, (byBank.get(a.bankId) ?? 0) + a.balance));
+    accounts.forEach((a) => byBank.set(a.bankId, (byBank.get(a.bankId) ?? 0) + convertToTRY(a.balance, a.currency)));
     const total = Array.from(byBank.values()).reduce((s, v) => s + v, 0);
     return BANKS.map((b) => ({
       bankId: b.id,
@@ -34,7 +50,6 @@ export function Balances() {
       value: byBank.get(b.id) ?? 0,
       pct: Math.round(((byBank.get(b.id) ?? 0) / total) * 100),
     })).filter((d) => d.value > 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [accounts]);
 
   const monthly = useMemo(() => {
@@ -62,14 +77,14 @@ export function Balances() {
             </button>
           ))}
           <span className="text-xs text-muted">
-            Tüm döviz cinslerindeki bakiyeler seçili kura çevrilerek toplam gösterilir
+            {scopeLabel} · Tüm döviz cinslerindeki bakiyeler seçili kura çevrilerek toplam gösterilir
           </span>
         </div>
         <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs">
-          {(Object.keys(RATES) as (keyof typeof RATES)[]).map((k) => (
+          {(Object.keys(FX_RATES_TO_TRY) as (keyof typeof FX_RATES_TO_TRY)[]).map((k) => (
             <span key={k}>
               <span className="font-bold text-ink-900">{k}</span>{" "}
-              <span className="text-muted">{RATES[k]}</span>
+              <span className="text-muted">{formatRate(FX_RATES_TO_TRY[k])}</span>
             </span>
           ))}
         </div>
@@ -78,15 +93,15 @@ export function Balances() {
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">Nakit varlıklar (kümülatif)</p>
-          <Money value={nakit} signed size="lg" colorize className="mt-2" />
+          <Money value={nakit} signed size="lg" colorize currencySymbol={symbol} className="mt-2" />
         </Card>
         <Card>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">Kredili mevduat / ek hesap</p>
-          <Money value={ekHesap} signed size="lg" colorize className="mt-2" />
+          <Money value={ekHesap} signed size="lg" colorize currencySymbol={symbol} className="mt-2" />
         </Card>
         <Card>
           <p className="text-xs font-semibold uppercase tracking-wide text-muted">Net varlık (kümülatif)</p>
-          <Money value={net} signed size="lg" colorize className="mt-2" />
+          <Money value={net} signed size="lg" colorize currencySymbol={symbol} className="mt-2" />
         </Card>
       </div>
 
@@ -111,7 +126,7 @@ export function Balances() {
               )}
               <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
                 <span className="text-xs text-muted">{accounts?.length ?? "…"} hesap</span>
-                <span className="font-display text-lg font-extrabold text-ink-900">{BANKS.length} banka</span>
+                <span className="font-display text-lg font-extrabold text-ink-900">{distribution.length} banka</span>
               </div>
             </div>
             <div className="space-y-2">
@@ -162,29 +177,30 @@ export function Balances() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line">
-                {CASH_FLOW_30D.length >= 0 &&
-                  accounts.map((a) => (
-                    <tr key={a.id}>
-                      <td className="py-3 pr-3">
-                        <div className="flex items-center gap-2.5">
-                          <BankAvatar bankId={a.bankId} size="sm" />
-                          <div>
-                            <p className="font-semibold text-ink-900">{a.label}</p>
-                            <p className="text-xs text-muted">{a.subLabel}</p>
-                          </div>
+                {accounts.map((a) => (
+                  <tr key={a.id}>
+                    <td className="py-3 pr-3">
+                      <div className="flex items-center gap-2.5">
+                        <BankAvatar bankId={a.bankId} size="sm" />
+                        <div>
+                          <p className="font-semibold text-ink-900">{a.label}</p>
+                          <p className="text-xs text-muted">{a.subLabel}</p>
                         </div>
-                      </td>
-                      <td className="py-3 pr-3 whitespace-nowrap font-mono text-xs text-muted">{a.iban}</td>
-                      <td className="py-3 pr-3 text-xs font-semibold text-ink-900/70">{a.currency}</td>
-                      <td className="py-3 pr-3 text-right">
-                        <Money value={a.balance} signed colorize size="sm" />
-                      </td>
-                      <td className="py-3 pr-3 text-right text-xs tabular text-muted">
-                        {a.overdraftLimit ? "₺" + a.availableBalance.toLocaleString("tr-TR") + " (limit dahil)" : "₺" + a.availableBalance.toLocaleString("tr-TR")}
-                      </td>
-                      <td className="py-3 text-xs text-muted">{formatRelative(a.lastSync)}</td>
-                    </tr>
-                  ))}
+                      </div>
+                    </td>
+                    <td className="py-3 pr-3 whitespace-nowrap font-mono text-xs text-muted">{a.iban}</td>
+                    <td className="py-3 pr-3 text-xs font-semibold text-ink-900/70">{a.currency}</td>
+                    <td className="py-3 pr-3 text-right">
+                      <Money value={a.balance} signed colorize size="sm" currencySymbol={CURRENCY_SYMBOLS[a.currency]} />
+                    </td>
+                    <td className="py-3 pr-3 text-right text-xs tabular text-muted">
+                      {CURRENCY_SYMBOLS[a.currency]}
+                      {a.availableBalance.toLocaleString("tr-TR")}
+                      {a.overdraftLimit ? " (limit dahil)" : ""}
+                    </td>
+                    <td className="py-3 text-xs text-muted">{formatRelative(a.lastSync)}</td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
