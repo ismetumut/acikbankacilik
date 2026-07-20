@@ -3,6 +3,8 @@ import type {
   AssistantExchange,
   Bank,
   BankId,
+  BinInfo,
+  CardCollection,
   CashFlowForecastPoint,
   CashFlowPoint,
   ClientSummary,
@@ -650,6 +652,66 @@ export const ERP_CARI_LIST: ErpCari[] = [
   { id: "cari-6", name: "Beyaz Ofis Kırtasiye", iban: "TR41 0001 0002 3456 9012 0122 06", vergiNo: "6789012345" },
   { id: "cari-7", name: "Ege Market Zinciri", iban: "TR83 0006 2000 1234 5566 2988 07", vergiNo: "7890123456" },
   { id: "cari-8", name: "Aksa Yapı Malz. San. Tic. Ltd.", iban: "TR95 0001 0002 3456 7788 0122 08", vergiNo: "8901234567" },
+];
+
+/** Sanal POS (üye işyeri) komisyon oranları — tek çekim ve taksitli için ayrı. */
+export const POS_COMMISSION = { single: 0.0189, installment: 0.0245 };
+
+interface BinRule {
+  prefix: string;
+  info: BinInfo;
+}
+
+/**
+ * BIN (kartın ilk 6 hanesi) → banka + kart programı + izinli taksitler.
+ * Gerçek entegrasyonda bu tablo bir BIN sorgu servisiyle (ör. banka/POS sağlayıcısı)
+ * değiştirilir; burada demo için gerçekçi bir alt küme sabit tutuluyor.
+ */
+const BIN_TABLE: BinRule[] = [
+  { prefix: "540667", info: { bank: "Garanti BBVA", program: "Bonus", scheme: "Mastercard", colorHex: "#0C6B41", installments: [2, 3, 6, 9] } },
+  { prefix: "554960", info: { bank: "Garanti BBVA", program: "Bonus", scheme: "Mastercard", colorHex: "#0C6B41", installments: [2, 3, 6, 9] } },
+  { prefix: "428220", info: { bank: "Türkiye İş Bankası", program: "Maximum", scheme: "Visa", colorHex: "#1B2A63", installments: [2, 3, 6, 9, 12] } },
+  { prefix: "454671", info: { bank: "Türkiye İş Bankası", program: "Maximum", scheme: "Visa", colorHex: "#1B2A63", installments: [2, 3, 6, 9, 12] } },
+  { prefix: "415565", info: { bank: "Yapı Kredi", program: "World", scheme: "Visa", colorHex: "#1E3A6E", installments: [2, 3, 6, 8] } },
+  { prefix: "552879", info: { bank: "Yapı Kredi", program: "World", scheme: "Mastercard", colorHex: "#1E3A6E", installments: [2, 3, 6, 8] } },
+  { prefix: "467783", info: { bank: "Ziraat Bankası", program: "Bankkart", scheme: "Visa", colorHex: "#B4231E", installments: [2, 3, 6] } },
+  { prefix: "979270", info: { bank: "Ziraat Bankası", program: "Bankkart Combo", scheme: "Troy", colorHex: "#B4231E", installments: [2, 3, 6] } },
+  { prefix: "435508", info: { bank: "Akbank", program: "Axess", scheme: "Visa", colorHex: "#B01E28", installments: [2, 3, 6, 9, 12] } },
+  { prefix: "552096", info: { bank: "QNB Finansbank", program: "CardFinans", scheme: "Mastercard", colorHex: "#5B2A86", installments: [2, 3, 6, 9] } },
+];
+
+function schemeFromFirstDigit(d: string): BinInfo["scheme"] {
+  if (d === "4") return "Visa";
+  if (d === "9") return "Troy";
+  return "Mastercard";
+}
+
+/** İlk 6 haneden kart bilgisini çözer. 6 haneden az girildiyse null döner. */
+export function lookupBin(cardDigits: string): BinInfo | null {
+  const clean = cardDigits.replace(/\D/g, "");
+  if (clean.length < 6) return null;
+  const rule = BIN_TABLE.find((r) => clean.startsWith(r.prefix));
+  if (rule) return rule.info;
+  return {
+    bank: "Bilinmeyen banka",
+    program: "—",
+    scheme: schemeFromFirstDigit(clean[0]),
+    colorHex: "#7a7568",
+    installments: [2, 3, 6],
+  };
+}
+
+/** Deneme için hazır kart numaraları (Genel bakış demosu). */
+export const SAMPLE_CARDS = [
+  { label: "Garanti Bonus", number: "5406 6700 1234 5678" },
+  { label: "İş Bankası Maximum", number: "4282 2012 3456 7890" },
+  { label: "Yapı Kredi World", number: "4155 6501 2345 6789" },
+];
+
+export const RECENT_CARD_COLLECTIONS: CardCollection[] = [
+  { id: "cc-1", maskedCard: "5406 66** **** 5678", bank: "Garanti BBVA", scheme: "Mastercard", amount: 4_320, installment: 3, commission: 106, net: 4_214, reference: "POS-2026-0912", time: "10:41" },
+  { id: "cc-2", maskedCard: "4282 20** **** 7890", bank: "Türkiye İş Bankası", scheme: "Visa", amount: 11_940, installment: 1, commission: 226, net: 11_714, reference: "POS-2026-0911", time: "09:58" },
+  { id: "cc-3", maskedCard: "4155 65** **** 6789", bank: "Yapı Kredi", scheme: "Visa", amount: 27_900, installment: 6, commission: 684, net: 27_216, reference: "POS-2026-0908", time: "dün 16:20" },
 ];
 
 function chain(steps: { role: "Düzenleyen" | "Kontrol eden" | "Onaycı"; person: string; status: "Tamamlandı" | "Bekliyor" }[]) {

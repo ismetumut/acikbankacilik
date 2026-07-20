@@ -2,6 +2,7 @@ import type {
   Account,
   AssistantExchange,
   BankId,
+  CardCollection,
   CashFlowForecastPoint,
   CashFlowPoint,
   ClientSummary,
@@ -30,14 +31,19 @@ import {
   OVERDUE_RECEIVABLES,
   PAYMENT_LINKS,
   PENDING_APPROVALS,
+  POS_COMMISSION,
+  RECENT_CARD_COLLECTIONS,
   RECENT_PAYMENTS,
   RECONCILIATION_EXCEPTIONS,
   REPORT_PACKAGES,
   TRANSACTIONS,
   bankOf,
+  lookupBin,
 } from "@/lib/mockData";
 import type {
   BankingProvider,
+  CardPaymentInput,
+  CardPaymentResult,
   NewPaymentInput,
   NewPaymentLinkInput,
   PaymentBatchInput,
@@ -56,6 +62,7 @@ let consents = [...CONSENTS];
 let pendingApprovals = [...PENDING_APPROVALS];
 let recentPayments = [...RECENT_PAYMENTS];
 let paymentLinks = [...PAYMENT_LINKS];
+let cardCollections = [...RECENT_CARD_COLLECTIONS];
 const overdueReceivables = [...OVERDUE_RECEIVABLES];
 let reconciliationExceptions = [...RECONCILIATION_EXCEPTIONS];
 let reportPackages = [...REPORT_PACKAGES];
@@ -197,18 +204,59 @@ export class MockBankingProvider implements BankingProvider {
   }
 
   async createPaymentLink(input: NewPaymentLinkInput): Promise<PaymentLink> {
+    const slug = input.customer.toLowerCase().replace(/[^a-z0-9]+/gi, "-").slice(0, 24) || "tahsilat";
     const link: PaymentLink = {
       id: `link-${Date.now()}`,
       customer: input.customer,
       invoiceRef: input.invoiceRef || `FTR-2026-${Math.floor(1000 + Math.random() * 900)}`,
       channel: input.channel,
-      sentAt: "şimdi gönderildi",
+      sentAt: input.output === "qr" ? "QR oluşturuldu" : "şimdi gönderildi",
       amount: input.amount,
+      amountOpen: input.amountOpen,
+      reusable: input.reusable,
+      validityLabel: input.validityLabel,
+      url: `akort.link/${slug}-${Math.floor(1000 + Math.random() * 8999)}`,
       status: "Bekliyor",
     };
     paymentLinks = [link, ...paymentLinks];
     await delay(undefined, 450);
     return link;
+  }
+
+  async takeCardPayment(input: CardPaymentInput): Promise<CardPaymentResult> {
+    const bin = lookupBin(input.cardNumber);
+    const rate = input.installment > 1 ? POS_COMMISSION.installment : POS_COMMISSION.single;
+    const commission = Math.round(input.amount * rate);
+    const net = input.amount - commission;
+    const digits = input.cardNumber.replace(/\D/g, "");
+    const masked = `${digits.slice(0, 6)}** **** ${digits.slice(-4)}`.replace(/(.{4})/g, "$1 ").trim();
+    const collection: CardCollection = {
+      id: `cc-${Date.now()}`,
+      maskedCard: masked,
+      bank: bin?.bank ?? "Bilinmeyen banka",
+      scheme: bin?.scheme ?? "Visa",
+      amount: input.amount,
+      installment: input.installment,
+      commission,
+      net,
+      reference: `POS-2026-${Math.floor(1000 + Math.random() * 8999)}`,
+      time: "şimdi",
+    };
+    cardCollections = [collection, ...cardCollections];
+    await delay(undefined, 600);
+    return {
+      reference: collection.reference,
+      approved: true,
+      bank: collection.bank,
+      amount: input.amount,
+      installment: input.installment,
+      commission,
+      net,
+    };
+  }
+
+  async getRecentCardCollections(): Promise<CardCollection[]> {
+    return delay(cardCollections);
   }
 
   async getOverdueReceivables(): Promise<OverdueReceivable[]> {

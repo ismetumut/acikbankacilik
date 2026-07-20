@@ -3,6 +3,7 @@ import type {
   ApprovalRole,
   AssistantExchange,
   BankId,
+  CardCollection,
   CashFlowForecastPoint,
   CashFlowPoint,
   ClientSummary,
@@ -11,6 +12,7 @@ import type {
   NotificationSetting,
   OverdueReceivable,
   PaymentLink,
+  PaymentLinkChannel,
   PendingApproval,
   ReconciliationException,
   RecentPayment,
@@ -65,10 +67,34 @@ export interface PaymentBatchInput {
 
 export interface NewPaymentLinkInput {
   customer: string;
+  /** amountOpen true ise tutar müşteriye bırakılır ve bu değer 0'dır. */
   amount: number;
+  amountOpen: boolean;
   invoiceRef: string;
-  installments: "Tek çekim" | "3 taksit" | "6 taksit";
-  channel: "WhatsApp" | "e-posta" | "SMS";
+  /** İzin verilen taksit sayıları; 1 = tek çekim. */
+  installments: number[];
+  reusable: boolean;
+  validityLabel: string;
+  output: "link" | "qr";
+  channel: PaymentLinkChannel;
+}
+
+export interface CardPaymentInput {
+  cardNumber: string;
+  holder: string;
+  amount: number;
+  installment: number; // 1 = tek çekim
+  customer?: string;
+}
+
+export interface CardPaymentResult {
+  reference: string;
+  approved: boolean;
+  bank: string;
+  amount: number;
+  installment: number;
+  commission: number;
+  net: number;
 }
 
 /**
@@ -98,6 +124,10 @@ export interface BankingProvider {
   getPaymentLinks(): Promise<PaymentLink[]>;
   createPaymentLink(input: NewPaymentLinkInput): Promise<PaymentLink>;
   getOverdueReceivables(): Promise<OverdueReceivable[]>;
+
+  /** Sanal POS / mail-order: kartı çekip tahsilatı gerçekleştirir. */
+  takeCardPayment(input: CardPaymentInput): Promise<CardPaymentResult>;
+  getRecentCardCollections(): Promise<CardCollection[]>;
 
   getReconciliationExceptions(): Promise<ReconciliationException[]>;
   matchReconciliation(exceptionId: string, candidateId: string): Promise<void>;

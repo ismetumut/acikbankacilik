@@ -1,17 +1,18 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useBanking } from "@/banking/context";
 import { useAsync } from "@/lib/useAsync";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { Toggle } from "@/components/ui/Toggle";
+import { QrPreview } from "@/components/ui/QrPreview";
 import { LoadingRows } from "@/components/ui/Skeleton";
 import { formatCurrency } from "@/lib/format";
+import { POS_COMMISSION, SAMPLE_CARDS, lookupBin } from "@/lib/mockData";
 import type { BadgeTone } from "@/components/ui/Badge";
-import type { PaymentLink } from "@/lib/types";
-
-const INSTALLMENTS = ["Tek çekim", "3 taksit", "6 taksit"] as const;
-const CHANNELS = ["WhatsApp", "e-posta", "SMS"] as const;
+import type { CardPaymentResult } from "@/banking/provider";
+import type { BinInfo, PaymentLink, PaymentLinkChannel } from "@/lib/types";
 
 const LINK_TONE: Record<PaymentLink["status"], BadgeTone> = {
   Görüntülendi: "warning",
@@ -20,30 +21,35 @@ const LINK_TONE: Record<PaymentLink["status"], BadgeTone> = {
   "Süresi doldu": "negative",
 };
 
+const SCHEME_LABEL: Record<BinInfo["scheme"], string> = {
+  Visa: "VISA",
+  Mastercard: "Mastercard",
+  Troy: "TROY",
+};
+
+function parseAmount(raw: string): number {
+  return Number(raw.replace(/\./g, "").replace(",", ".")) || 0;
+}
+
+function formatCardNumber(raw: string): string {
+  return raw
+    .replace(/\D/g, "")
+    .slice(0, 16)
+    .replace(/(.{4})/g, "$1 ")
+    .trim();
+}
+
 export function Collections() {
   const banking = useBanking();
   const { data: links, refetch: refetchLinks } = useAsync(() => banking.getPaymentLinks(), []);
   const { data: overdue } = useAsync(() => banking.getOverdueReceivables(), []);
+  const { data: cardCollections, refetch: refetchCards } = useAsync(() => banking.getRecentCardCollections(), []);
 
-  const [customer, setCustomer] = useState("Ege Market Zinciri");
-  const [amount, setAmount] = useState("96.000,00");
-  const [invoiceRef, setInvoiceRef] = useState("FTR-2026-1198");
-  const [installments, setInstallments] = useState<(typeof INSTALLMENTS)[number]>("Tek çekim");
-  const [channel, setChannel] = useState<(typeof CHANNELS)[number]>("WhatsApp");
-  const [creating, setCreating] = useState(false);
+  const [tab, setTab] = useState<"moto" | "link">("moto");
 
   const todayCollected = 98_280;
   const openLinksTotal = links?.filter((l) => l.status !== "Ödendi").reduce((s, l) => s + l.amount, 0) ?? 0;
   const overdueTotal = overdue?.reduce((s, o) => s + o.amount, 0) ?? 0;
-
-  async function handleCreateLink(e: React.FormEvent) {
-    e.preventDefault();
-    setCreating(true);
-    const numeric = Number(amount.replace(/\./g, "").replace(",", "."));
-    await banking.createPaymentLink({ customer, amount: numeric, invoiceRef, installments, channel });
-    setCreating(false);
-    refetchLinks();
-  }
 
   return (
     <div className="space-y-6">
@@ -54,61 +60,35 @@ export function Collections() {
         <StatTile label="Ortalama tahsilat süresi" value="18 gün" hint="sektör ort. 41 gün" />
       </div>
 
-      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_1.1fr]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1.15fr_1fr]">
         <div className="space-y-6">
           <Card>
-            <CardTitle>Ödeme linki oluştur</CardTitle>
-            <p className="mb-4 text-xs text-muted">Müşterin karta veya FAST ile öder, tahsilat otomatik eşleşir</p>
-            <form onSubmit={handleCreateLink} className="space-y-3">
-              <label className="block">
-                <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-wide text-muted">Müşteri</span>
-                <input value={customer} onChange={(e) => setCustomer(e.target.value)} className="input" />
-              </label>
-              <div className="grid grid-cols-2 gap-3">
-                <label className="block">
-                  <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-wide text-muted">Tutar</span>
-                  <input value={amount} onChange={(e) => setAmount(e.target.value)} className="input" />
-                </label>
-                <label className="block">
-                  <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-wide text-muted">Bağlı fatura</span>
-                  <input value={invoiceRef} onChange={(e) => setInvoiceRef(e.target.value)} className="input" />
-                </label>
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {INSTALLMENTS.map((opt) => (
-                  <button
-                    type="button"
-                    key={opt}
-                    onClick={() => setInstallments(opt)}
-                    className={`rounded-xl border px-3 py-2.5 text-sm font-bold transition-colors ${
-                      installments === opt ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink-900"
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-              <div className="grid grid-cols-3 gap-2">
-                {CHANNELS.map((opt) => (
-                  <button
-                    type="button"
-                    key={opt}
-                    onClick={() => setChannel(opt)}
-                    className={`rounded-xl border px-3 py-2.5 text-sm font-bold transition-colors ${
-                      channel === opt ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink-900"
-                    }`}
-                  >
-                    {opt}
-                  </button>
-                ))}
-              </div>
-              <p className="rounded-xl bg-cream-100 px-3 py-2 font-mono text-xs text-muted">
-                akort.link/{customer.toLowerCase().replace(/[^a-z0-9]+/gi, "-").slice(0, 24)} · 7 gün geçerli
-              </p>
-              <Button type="submit" variant="primary" className="w-full" disabled={creating}>
-                {creating ? "Oluşturuluyor…" : "Linki oluştur ve gönder →"}
-              </Button>
-            </form>
+            <div className="mb-4 flex gap-1 rounded-xl bg-cream-100 p-1">
+              <button
+                type="button"
+                onClick={() => setTab("moto")}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold transition-colors ${
+                  tab === "moto" ? "bg-white text-ink-900 shadow-sm" : "text-ink-900/50"
+                }`}
+              >
+                Ödeme al
+              </button>
+              <button
+                type="button"
+                onClick={() => setTab("link")}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold transition-colors ${
+                  tab === "link" ? "bg-white text-ink-900 shadow-sm" : "text-ink-900/50"
+                }`}
+              >
+                Link / QR oluştur
+              </button>
+            </div>
+
+            {tab === "moto" ? (
+              <MotoPanel onCollected={refetchCards} />
+            ) : (
+              <LinkPanel onCreated={refetchLinks} />
+            )}
           </Card>
 
           <Card>
@@ -133,6 +113,35 @@ export function Collections() {
         <div className="space-y-6">
           <Card>
             <CardHeader>
+              <CardTitle>Son kart tahsilatları</CardTitle>
+              <span className="text-sm font-semibold text-brand-500">Tümü →</span>
+            </CardHeader>
+            {!cardCollections ? (
+              <LoadingRows rows={3} />
+            ) : (
+              <div className="divide-y divide-line">
+                {cardCollections.slice(0, 4).map((c) => (
+                  <div key={c.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="truncate font-mono text-xs text-ink-900">{c.maskedCard}</p>
+                      <p className="truncate text-xs text-muted">
+                        {c.bank} · {c.installment > 1 ? `${c.installment} taksit` : "tek çekim"} · {c.time}
+                      </p>
+                    </div>
+                    <div className="shrink-0 text-right">
+                      <p className="text-sm font-bold tabular text-brand-500">
+                        +{formatCurrency(c.amount, { withDecimals: false })}
+                      </p>
+                      <p className="text-[11px] text-muted">net {formatCurrency(c.net, { withDecimals: false })}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <CardHeader>
               <CardTitle>Aktif ödeme linkleri</CardTitle>
               <span className="text-sm font-semibold text-brand-500">Tümü →</span>
             </CardHeader>
@@ -145,11 +154,14 @@ export function Collections() {
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-ink-900">{l.customer}</p>
                       <p className="truncate text-xs text-muted">
-                        {l.invoiceRef} · {l.channel} · {l.sentAt}
+                        {l.invoiceRef} · {l.channel}
+                        {l.reusable ? " · çok kullanımlık" : ""} · {l.sentAt}
                       </p>
                     </div>
                     <div className="flex shrink-0 items-center gap-2">
-                      <span className="text-sm font-bold tabular text-ink-900">{formatCurrency(l.amount, { withDecimals: false })}</span>
+                      <span className="text-sm font-bold tabular text-ink-900">
+                        {l.amountOpen ? "açık tutar" : formatCurrency(l.amount, { withDecimals: false })}
+                      </span>
                       <Badge tone={LINK_TONE[l.status]}>{l.status}</Badge>
                     </div>
                   </div>
@@ -196,5 +208,422 @@ export function Collections() {
         </div>
       </div>
     </div>
+  );
+}
+
+function SchemeBadge({ bin }: { bin: BinInfo }) {
+  return (
+    <div className="flex items-center gap-2.5 rounded-xl border border-line bg-cream-100 px-3 py-2.5">
+      <span
+        className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-extrabold text-white"
+        style={{ backgroundColor: bin.colorHex }}
+      >
+        {bin.scheme === "Visa" ? "V" : bin.scheme === "Troy" ? "T" : "MC"}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold text-ink-900">
+          {bin.bank} · {bin.program}
+        </p>
+        <p className="text-xs text-muted">{SCHEME_LABEL[bin.scheme]} · BIN doğrulandı</p>
+      </div>
+    </div>
+  );
+}
+
+function MotoPanel({ onCollected }: { onCollected: () => void }) {
+  const banking = useBanking();
+  const [customer, setCustomer] = useState("");
+  const [card, setCard] = useState("");
+  const [holder, setHolder] = useState("");
+  const [expiry, setExpiry] = useState("");
+  const [cvv, setCvv] = useState("");
+  const [amount, setAmount] = useState("");
+  const [installment, setInstallment] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const [result, setResult] = useState<CardPaymentResult | null>(null);
+
+  const bin = useMemo(() => lookupBin(card), [card]);
+  const numericAmount = parseAmount(amount);
+  const installmentOptions = [1, ...(bin?.installments ?? [])];
+  const rate = installment > 1 ? POS_COMMISSION.installment : POS_COMMISSION.single;
+  const commission = Math.round(numericAmount * rate);
+  const net = numericAmount - commission;
+
+  const canSubmit =
+    card.replace(/\D/g, "").length === 16 && holder.trim() && expiry.length >= 4 && cvv.length >= 3 && numericAmount > 0;
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!canSubmit) return;
+    setSubmitting(true);
+    const res = await banking.takeCardPayment({
+      cardNumber: card,
+      holder,
+      amount: numericAmount,
+      installment,
+      customer: customer || undefined,
+    });
+    setSubmitting(false);
+    setResult(res);
+    onCollected();
+  }
+
+  function reset() {
+    setResult(null);
+    setCustomer("");
+    setCard("");
+    setHolder("");
+    setExpiry("");
+    setCvv("");
+    setAmount("");
+    setInstallment(1);
+  }
+
+  if (result) {
+    return (
+      <div className="text-center">
+        <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-brand-100 text-xl text-brand-600">
+          ✓
+        </div>
+        <p className="font-display text-lg font-extrabold text-ink-900">Ödeme alındı</p>
+        <p className="mt-1 text-sm text-muted">
+          {result.bank} · {result.installment > 1 ? `${result.installment} taksit` : "tek çekim"} · onay {result.reference}
+        </p>
+        <div className="mt-4 space-y-2 rounded-xl bg-cream-100 p-4 text-left text-sm">
+          <div className="flex justify-between">
+            <span className="text-muted">Tahsil edilen</span>
+            <span className="font-bold text-ink-900">{formatCurrency(result.amount)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted">Komisyon</span>
+            <span className="font-bold text-negative-700">−{formatCurrency(result.commission)}</span>
+          </div>
+          <div className="flex justify-between border-t border-line pt-2">
+            <span className="font-semibold text-ink-900">Hesaba geçecek net</span>
+            <span className="font-bold text-brand-500">{formatCurrency(result.net)}</span>
+          </div>
+        </div>
+        <Button variant="primary" className="mt-4 w-full" onClick={reset}>
+          Yeni ödeme al
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      <CardTitle>Ödeme al · sanal POS</CardTitle>
+      <p className="mb-4 text-xs text-muted">
+        Kart bilgisiyle (mail order / telefon siparişi) doğrudan tahsilat. Kart numarası girildiğinde banka ve taksit
+        seçenekleri otomatik gelir.
+      </p>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <label className="block">
+          <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-wide text-muted">Müşteri (opsiyonel)</span>
+          <input value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Ad / firma" className="input" />
+        </label>
+
+        <label className="block">
+          <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-wide text-muted">Kart numarası</span>
+          <input
+            value={card}
+            onChange={(e) => setCard(formatCardNumber(e.target.value))}
+            inputMode="numeric"
+            placeholder="0000 0000 0000 0000"
+            className="input font-mono"
+          />
+        </label>
+
+        {bin ? (
+          <SchemeBadge bin={bin} />
+        ) : (
+          <p className="text-[11px] text-muted">
+            Deneyin:{" "}
+            {SAMPLE_CARDS.map((c, i) => (
+              <span key={c.number}>
+                {i > 0 && " · "}
+                <button
+                  type="button"
+                  onClick={() => setCard(c.number)}
+                  className="font-mono text-brand-500 hover:underline"
+                >
+                  {c.number.slice(0, 4)}…
+                </button>{" "}
+                ({c.label})
+              </span>
+            ))}
+          </p>
+        )}
+
+        <input
+          value={holder}
+          onChange={(e) => setHolder(e.target.value.toUpperCase())}
+          placeholder="KART ÜZERİNDEKİ İSİM"
+          className="input uppercase"
+        />
+        <div className="grid grid-cols-3 gap-3">
+          <input
+            value={expiry}
+            onChange={(e) => {
+              const d = e.target.value.replace(/\D/g, "").slice(0, 4);
+              setExpiry(d.length > 2 ? `${d.slice(0, 2)}/${d.slice(2)}` : d);
+            }}
+            placeholder="AA/YY"
+            className="input"
+          />
+          <input
+            value={cvv}
+            onChange={(e) => setCvv(e.target.value.replace(/\D/g, "").slice(0, 3))}
+            placeholder="CVV"
+            className="input"
+          />
+          <input value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="Tutar" className="input" />
+        </div>
+
+        <div>
+          <span className="mb-1.5 block text-[10.5px] font-bold uppercase tracking-wide text-muted">Taksit</span>
+          <div className="flex flex-wrap gap-2">
+            {installmentOptions.map((n) => (
+              <button
+                type="button"
+                key={n}
+                onClick={() => setInstallment(n)}
+                className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${
+                  installment === n ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink-900"
+                }`}
+              >
+                {n === 1 ? "Tek çekim" : `${n} taksit`}
+                {n > 1 && numericAmount > 0 && (
+                  <span className="ml-1 font-normal opacity-70">
+                    · {formatCurrency(numericAmount / n, { withDecimals: false })}/ay
+                  </span>
+                )}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {numericAmount > 0 && (
+          <div className="flex items-center justify-between rounded-xl bg-cream-100 px-3 py-2.5 text-xs">
+            <span className="text-muted">
+              Komisyon %{(rate * 100).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} · −
+              {formatCurrency(commission, { withDecimals: false })}
+            </span>
+            <span className="font-bold text-ink-900">Net {formatCurrency(net, { withDecimals: false })}</span>
+          </div>
+        )}
+
+        <Button type="submit" variant="primary" className="w-full" disabled={!canSubmit || submitting}>
+          {submitting ? "Tahsil ediliyor…" : `Ödemeyi al${numericAmount > 0 ? " · " + formatCurrency(numericAmount, { withDecimals: false }) : ""}`}
+        </Button>
+        <p className="text-center text-[11px] leading-relaxed text-muted">
+          Kart verileri PCI-DSS uyumlu banka sanal POS'una iletilir; Akort kart numarasını saklamaz.
+        </p>
+      </form>
+    </>
+  );
+}
+
+const VALIDITY_OPTIONS = ["24 saat", "7 gün", "30 gün", "Süresiz"];
+const LINK_INSTALLMENTS = [1, 3, 6, 9];
+const OUTPUT_CHANNELS: PaymentLinkChannel[] = ["WhatsApp", "e-posta", "SMS"];
+
+function LinkPanel({ onCreated }: { onCreated: () => void }) {
+  const banking = useBanking();
+  const [customer, setCustomer] = useState("Ege Market Zinciri");
+  const [amountOpen, setAmountOpen] = useState(false);
+  const [amount, setAmount] = useState("96.000,00");
+  const [invoiceRef, setInvoiceRef] = useState("FTR-2026-1198");
+  const [installments, setInstallments] = useState<Set<number>>(new Set([1]));
+  const [reusable, setReusable] = useState(false);
+  const [validity, setValidity] = useState("7 gün");
+  const [output, setOutput] = useState<"link" | "qr">("link");
+  const [channel, setChannel] = useState<PaymentLinkChannel>("WhatsApp");
+  const [creating, setCreating] = useState(false);
+  const [created, setCreated] = useState<PaymentLink | null>(null);
+
+  const slug = customer.toLowerCase().replace(/[^a-z0-9]+/gi, "-").slice(0, 24) || "tahsilat";
+  const previewUrl = `akort.link/${slug}`;
+
+  function toggleInstallment(n: number) {
+    setInstallments((prev) => {
+      const next = new Set(prev);
+      if (next.has(n)) next.delete(n);
+      else next.add(n);
+      if (next.size === 0) next.add(1);
+      return next;
+    });
+  }
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setCreating(true);
+    const link = await banking.createPaymentLink({
+      customer,
+      amount: amountOpen ? 0 : parseAmount(amount),
+      amountOpen,
+      invoiceRef,
+      installments: Array.from(installments).sort((a, b) => a - b),
+      reusable,
+      validityLabel: validity,
+      output,
+      channel: output === "qr" ? "QR" : channel,
+    });
+    setCreating(false);
+    setCreated(link);
+    onCreated();
+  }
+
+  return (
+    <>
+      <CardTitle>Ödeme linki / QR oluştur</CardTitle>
+      <p className="mb-4 text-xs text-muted">Müşterin karta veya FAST ile öder, tahsilat otomatik eşleşir</p>
+      <form onSubmit={handleSubmit} className="space-y-3">
+        <label className="block">
+          <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-wide text-muted">Müşteri</span>
+          <input value={customer} onChange={(e) => setCustomer(e.target.value)} className="input" />
+        </label>
+
+        <div>
+          <span className="mb-1.5 block text-[10.5px] font-bold uppercase tracking-wide text-muted">Tutar</span>
+          <div className="mb-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setAmountOpen(false)}
+              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${
+                !amountOpen ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink-900"
+              }`}
+            >
+              Sabit tutar
+            </button>
+            <button
+              type="button"
+              onClick={() => setAmountOpen(true)}
+              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${
+                amountOpen ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink-900"
+              }`}
+            >
+              Müşteri belirlesin
+            </button>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <input
+              value={amountOpen ? "" : amount}
+              onChange={(e) => setAmount(e.target.value)}
+              disabled={amountOpen}
+              placeholder={amountOpen ? "Müşteri girecek" : "Tutar"}
+              className="input disabled:bg-cream-100 disabled:text-muted"
+            />
+            <input value={invoiceRef} onChange={(e) => setInvoiceRef(e.target.value)} placeholder="Bağlı fatura" className="input" />
+          </div>
+        </div>
+
+        <div>
+          <span className="mb-1.5 block text-[10.5px] font-bold uppercase tracking-wide text-muted">Sunulacak taksitler</span>
+          <div className="flex flex-wrap gap-2">
+            {LINK_INSTALLMENTS.map((n) => (
+              <button
+                type="button"
+                key={n}
+                onClick={() => toggleInstallment(n)}
+                className={`rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${
+                  installments.has(n) ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink-900"
+                }`}
+              >
+                {n === 1 ? "Tek çekim" : `${n} taksit`}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between rounded-xl border border-line px-3 py-2.5">
+          <div>
+            <p className="text-sm font-semibold text-ink-900">Çok kullanımlık</p>
+            <p className="text-xs text-muted">{reusable ? "Bağış/genel link — defalarca ödenebilir" : "Tek kullanımlık — bir kez ödenince kapanır"}</p>
+          </div>
+          <Toggle checked={reusable} onChange={() => setReusable((v) => !v)} label="Çok kullanımlık" />
+        </div>
+
+        <label className="block">
+          <span className="mb-1 block text-[10.5px] font-bold uppercase tracking-wide text-muted">Geçerlilik</span>
+          <select value={validity} onChange={(e) => setValidity(e.target.value)} className="input">
+            {VALIDITY_OPTIONS.map((v) => (
+              <option key={v} value={v}>
+                {v}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <div>
+          <span className="mb-1.5 block text-[10.5px] font-bold uppercase tracking-wide text-muted">Çıktı</span>
+          <div className="mb-2 flex gap-2">
+            <button
+              type="button"
+              onClick={() => setOutput("link")}
+              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${
+                output === "link" ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink-900"
+              }`}
+            >
+              Link gönder
+            </button>
+            <button
+              type="button"
+              onClick={() => setOutput("qr")}
+              className={`flex-1 rounded-lg border px-3 py-2 text-xs font-bold transition-colors ${
+                output === "qr" ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink-900"
+              }`}
+            >
+              QR oluştur
+            </button>
+          </div>
+          {output === "link" && (
+            <div className="grid grid-cols-3 gap-2">
+              {OUTPUT_CHANNELS.map((c) => (
+                <button
+                  type="button"
+                  key={c}
+                  onClick={() => setChannel(c)}
+                  className={`rounded-lg border px-2 py-2 text-xs font-bold transition-colors ${
+                    channel === c ? "border-brand-600 bg-brand-600 text-white" : "border-line bg-white text-ink-900"
+                  }`}
+                >
+                  {c}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {output === "qr" ? (
+          <div className="flex items-center gap-4 rounded-xl bg-cream-100 p-3">
+            <QrPreview value={created?.url ?? previewUrl} className="h-24 w-24 shrink-0 rounded-lg bg-white p-1" />
+            <div className="min-w-0 text-xs text-muted">
+              <p className="font-mono text-ink-900">{created?.url ?? previewUrl}</p>
+              <p className="mt-1">{reusable ? "Çok kullanımlık" : "Tek kullanımlık"} · {validity} geçerli</p>
+              <p className="mt-1">Kasada göster veya faturaya bas.</p>
+            </div>
+          </div>
+        ) : (
+          <p className="rounded-xl bg-cream-100 px-3 py-2 font-mono text-xs text-muted">
+            {created?.url ?? previewUrl} · {validity} geçerli
+          </p>
+        )}
+
+        <Button type="submit" variant="primary" className="w-full" disabled={creating}>
+          {creating
+            ? "Oluşturuluyor…"
+            : output === "qr"
+              ? "QR oluştur →"
+              : "Linki oluştur ve gönder →"}
+        </Button>
+
+        {created && (
+          <p className="text-center text-xs font-semibold text-brand-500">
+            ✓ {output === "qr" ? "QR hazır" : `Link ${channel} ile gönderildi`} — aktif linkler listesine eklendi.
+          </p>
+        )}
+      </form>
+    </>
   );
 }

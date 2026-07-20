@@ -105,14 +105,46 @@ export interface RecentPayment {
   status: "Tamamlandı" | "Bankada" | "Reddedildi";
 }
 
+export type PaymentLinkChannel = "WhatsApp" | "e-posta" | "SMS" | "QR";
+
 export interface PaymentLink {
   id: string;
   customer: string;
   invoiceRef: string;
-  channel: "WhatsApp" | "e-posta" | "SMS";
+  channel: PaymentLinkChannel;
   sentAt: string;
   amount: number;
+  /** 0 = müşteri belirlesin (açık tutar). */
+  amountOpen?: boolean;
+  reusable?: boolean;
+  validityLabel?: string;
+  url?: string;
   status: "Görüntülendi" | "Ödendi" | "Bekliyor" | "Süresi doldu";
+}
+
+export type CardScheme = "Visa" | "Mastercard" | "Troy";
+
+/** Result of a Bank Identification Number (first 6 digits) lookup. */
+export interface BinInfo {
+  bank: string;
+  program: string;
+  scheme: CardScheme;
+  colorHex: string;
+  /** Allowed installment counts beyond single charge (2, 3, 6, …). */
+  installments: number[];
+}
+
+export interface CardCollection {
+  id: string;
+  maskedCard: string;
+  bank: string;
+  scheme: CardScheme;
+  amount: number;
+  installment: number; // 1 = tek çekim
+  commission: number;
+  net: number;
+  reference: string;
+  time: string;
 }
 
 export interface OverdueReceivable {
