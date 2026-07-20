@@ -69,6 +69,14 @@ export interface ConsentGrant {
   scopeLabel: string;
 }
 
+export type ApprovalRole = "Düzenleyen" | "Kontrol eden" | "Onaycı";
+
+export interface ApprovalStep {
+  role: ApprovalRole;
+  person: string;
+  status: "Tamamlandı" | "Bekliyor";
+}
+
 export interface PendingApproval {
   id: string;
   title: string;
@@ -77,6 +85,14 @@ export interface PendingApproval {
   amount: number;
   requestedBy: string;
   risky?: boolean;
+  chain: ApprovalStep[];
+}
+
+export interface ErpCari {
+  id: string;
+  name: string;
+  iban: string;
+  vergiNo?: string;
 }
 
 export interface RecentPayment {

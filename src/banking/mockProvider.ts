@@ -40,6 +40,7 @@ import type {
   BankingProvider,
   NewPaymentInput,
   NewPaymentLinkInput,
+  PaymentBatchInput,
   TransactionPage,
   TransactionQuery,
 } from "./provider";
@@ -114,8 +115,23 @@ export class MockBankingProvider implements BankingProvider {
 
   async decideApproval(id: string, decision: "approve" | "reject"): Promise<void> {
     const approval = pendingApprovals.find((a) => a.id === id);
-    pendingApprovals = pendingApprovals.filter((a) => a.id !== id);
-    if (approval && decision === "approve") {
+    if (!approval) {
+      await delay(undefined, 200);
+      return;
+    }
+
+    if (decision === "reject") {
+      pendingApprovals = pendingApprovals.filter((a) => a.id !== id);
+      await delay(undefined, 350);
+      return;
+    }
+
+    const nextIdx = approval.chain.findIndex((s) => s.status === "Bekliyor");
+    const updatedChain = approval.chain.map((s, i) => (i === nextIdx ? { ...s, status: "Tamamlandı" as const } : s));
+    const stillPending = updatedChain.some((s) => s.status === "Bekliyor");
+
+    if (!stillPending) {
+      pendingApprovals = pendingApprovals.filter((a) => a.id !== id);
       recentPayments = [
         {
           id: `pay-${Date.now()}`,
@@ -128,8 +144,32 @@ export class MockBankingProvider implements BankingProvider {
         },
         ...recentPayments,
       ];
+    } else {
+      pendingApprovals = pendingApprovals.map((a) => (a.id === id ? { ...a, chain: updatedChain } : a));
     }
     await delay(undefined, 350);
+  }
+
+  async submitPaymentBatch(input: PaymentBatchInput): Promise<PendingApproval[]> {
+    const created: PendingApproval[] = input.lines.map((line, i) => {
+      const account = accounts.find((a) => a.id === line.sourceAccountId);
+      return {
+        id: `appr-${Date.now()}-${i}`,
+        title: line.recipient,
+        subtitle: `${account ? bankOf(account.bankId).shortName : ""} · ${line.channel}${line.description ? " · " + line.description : ""}`,
+        bankId: account?.bankId ?? "ziraat",
+        amount: line.amount,
+        requestedBy: input.chain[0]?.person ?? "Selin Demir",
+        chain: input.chain.map((c, idx) => ({
+          role: c.role,
+          person: c.person,
+          status: idx === 0 ? ("Tamamlandı" as const) : ("Bekliyor" as const),
+        })),
+      };
+    });
+    pendingApprovals = [...created, ...pendingApprovals];
+    await delay(undefined, 500);
+    return created;
   }
 
   async getRecentPayments(): Promise<RecentPayment[]> {

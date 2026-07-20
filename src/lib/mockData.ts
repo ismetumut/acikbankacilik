@@ -9,6 +9,7 @@ import type {
   Company,
   ConsentGrant,
   Currency,
+  ErpCari,
   ExpectedCashItem,
   NotificationSetting,
   OverdueReceivable,
@@ -638,6 +639,23 @@ export const CONSENTS: ConsentGrant[] = [
   },
 ];
 
+export const TEAM_MEMBERS = ["Selin Demir", "M. Kaya", "A. Yılmaz", "B. Öztürk", "C. Aydın"];
+
+export const ERP_CARI_LIST: ErpCari[] = [
+  { id: "cari-1", name: "Anadolu Ambalaj San. Tic. A.Ş.", iban: "TR58 0006 4000 0012 3456 4471 01", vergiNo: "1234567890" },
+  { id: "cari-2", name: "Karadeniz Gıda Toptan", iban: "TR12 0006 4000 0012 8890 3312 02", vergiNo: "2345678901" },
+  { id: "cari-3", name: "Delta Elektrik", iban: "TR64 0006 7010 0000 1122 4155 03", vergiNo: "3456789012" },
+  { id: "cari-4", name: "Meridyen Lojistik", iban: "TR77 0006 2000 1234 3345 2988 04", vergiNo: "4567890123" },
+  { id: "cari-5", name: "Mert Nakliyat", iban: "TR29 0006 4000 0011 7723 6788 05", vergiNo: "5678901234" },
+  { id: "cari-6", name: "Beyaz Ofis Kırtasiye", iban: "TR41 0001 0002 3456 9012 0122 06", vergiNo: "6789012345" },
+  { id: "cari-7", name: "Ege Market Zinciri", iban: "TR83 0006 2000 1234 5566 2988 07", vergiNo: "7890123456" },
+  { id: "cari-8", name: "Aksa Yapı Malz. San. Tic. Ltd.", iban: "TR95 0001 0002 3456 7788 0122 08", vergiNo: "8901234567" },
+];
+
+function chain(steps: { role: "Düzenleyen" | "Kontrol eden" | "Onaycı"; person: string; status: "Tamamlandı" | "Bekliyor" }[]) {
+  return steps;
+}
+
 export const PENDING_APPROVALS: PendingApproval[] = [
   {
     id: "appr-1",
@@ -646,6 +664,11 @@ export const PENDING_APPROVALS: PendingApproval[] = [
     bankId: "isbankasi",
     amount: 386_000,
     requestedBy: "M. Kaya",
+    chain: chain([
+      { role: "Düzenleyen", person: "M. Kaya", status: "Tamamlandı" },
+      { role: "Kontrol eden", person: "Selin Demir", status: "Bekliyor" },
+      { role: "Onaycı", person: "A. Yılmaz", status: "Bekliyor" },
+    ]),
   },
   {
     id: "appr-2",
@@ -654,6 +677,10 @@ export const PENDING_APPROVALS: PendingApproval[] = [
     bankId: "ziraat",
     amount: 118_400,
     requestedBy: "Otomasyon",
+    chain: chain([
+      { role: "Düzenleyen", person: "Otomasyon", status: "Tamamlandı" },
+      { role: "Onaycı", person: "Selin Demir", status: "Bekliyor" },
+    ]),
   },
   {
     id: "appr-3",
@@ -662,6 +689,12 @@ export const PENDING_APPROVALS: PendingApproval[] = [
     bankId: "garanti",
     amount: 12_400,
     requestedBy: "S. Demir",
+    chain: chain([
+      { role: "Düzenleyen", person: "Selin Demir", status: "Tamamlandı" },
+      { role: "Kontrol eden", person: "M. Kaya", status: "Bekliyor" },
+      { role: "Onaycı", person: "A. Yılmaz", status: "Bekliyor" },
+      { role: "Onaycı", person: "B. Öztürk", status: "Bekliyor" },
+    ]),
     risky: true,
   },
 ];

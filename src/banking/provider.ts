@@ -1,5 +1,6 @@
 import type {
   Account,
+  ApprovalRole,
   AssistantExchange,
   BankId,
   CashFlowForecastPoint,
@@ -43,6 +44,25 @@ export interface NewPaymentInput {
   channel: "FAST" | "EFT" | "Havale";
 }
 
+export interface PaymentLineInput {
+  sourceAccountId: string;
+  recipient: string;
+  iban: string;
+  amount: number;
+  description: string;
+  channel: "FAST" | "EFT" | "Havale";
+}
+
+export interface ApprovalChainInput {
+  role: ApprovalRole;
+  person: string;
+}
+
+export interface PaymentBatchInput {
+  lines: PaymentLineInput[];
+  chain: ApprovalChainInput[];
+}
+
 export interface NewPaymentLinkInput {
   customer: string;
   amount: number;
@@ -68,7 +88,9 @@ export interface BankingProvider {
   renewConsent(bankId: BankId): Promise<void>;
 
   getPendingApprovals(): Promise<PendingApproval[]>;
+  /** Advances the next pending step in the approval chain (approve), or removes the request (reject). */
   decideApproval(id: string, decision: "approve" | "reject"): Promise<void>;
+  submitPaymentBatch(input: PaymentBatchInput): Promise<PendingApproval[]>;
 
   getRecentPayments(): Promise<RecentPayment[]>;
   createPayment(input: NewPaymentInput): Promise<RecentPayment>;
