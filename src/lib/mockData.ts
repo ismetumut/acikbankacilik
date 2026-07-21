@@ -63,6 +63,87 @@ export const COMPANY = {
   userRole: "Yönetici",
 };
 
+/** Kurulum sihirbazındaki başvuru formunu otomatik dolduran resmi firma bilgileri. */
+export const COMPANY_DETAILS = {
+  unvan: "Demir Ticaret A.Ş.",
+  vergiDairesi: "Kadıköy V.D.",
+  vergiNo: "2960148751",
+  mersisNo: "0296014875100015",
+  adres: "Barbaros Mah. Begonya Sok. No:1 Ataşehir / İstanbul",
+  yetkili: "Selin Demir",
+  yetkiliUnvan: "Genel Müdür",
+  yetkiliTckn: "123••••••45",
+  telefon: "+90 216 555 12 34",
+  eposta: "selin@demirticaret.com.tr",
+  kep: "demirticaret@hs01.kep.tr",
+};
+
+export interface BankOnboarding {
+  formName: string;
+  formCode: string;
+  channel: string;
+  kep: string;
+  processDays: string;
+  cautions: string[];
+}
+
+/** Bankaya özel başvuru formu meta verisi + gönderim rehberi. */
+export const BANK_ONBOARDING: Record<BankId, BankOnboarding> = {
+  ziraat: {
+    formName: "Ziraat Bankası — Açık Bankacılık Kurumsal Başvuru Formu",
+    formCode: "ABK-KUR-01",
+    channel: "Kurumsal İnternet Şubesi › Başvurular veya şube",
+    kep: "ziraatbankasi@hs01.kep.tr",
+    processDays: "2–3 iş günü",
+    cautions: [
+      "Ziraat başvurusu kurumsal internet şubesi üzerinden veya şubeden yapılabilir; e-posta kabul edilmez.",
+      "Ödeme emri (TÖS) yetkisi için ek risk onay formu şube tarafından talep edilir.",
+    ],
+  },
+  isbankasi: {
+    formName: "Türkiye İş Bankası — Açık Bankacılık Hizmet Başvuru Formu",
+    formCode: "AB-2024-KRML",
+    channel: "İşCep Kurumsal › Başvurular veya KEP",
+    kep: "isbankasi@hs03.kep.tr",
+    processDays: "1–2 iş günü",
+    cautions: [
+      "İş Bankası KEP ile gönderimi kabul eder; form PDF/A ve e-imzalı olmalıdır.",
+      "Talep edilen IBAN'lar aynı vergi numarasına bağlı olmalıdır.",
+    ],
+  },
+  garanti: {
+    formName: "Garanti BBVA — Açık Bankacılık Başvuru ve Muvafakatname",
+    formCode: "GB-OB-CORP",
+    channel: "KEP (zorunlu) — ıslak imzalı form taranıp gönderilir",
+    kep: "garantibbva@hs02.kep.tr",
+    processDays: "3–4 iş günü",
+    cautions: [
+      "Garanti BBVA için başvuru yalnızca KEP ile kabul edilir; şubeye elden teslim edilmez.",
+      "Muvafakatname sayfası ayrıca imzalanmalı ve imza sirküleri ekte gönderilmelidir.",
+    ],
+  },
+  yapikredi: {
+    formName: "Yapı Kredi — Açık Bankacılık Kurumsal Talep Formu",
+    formCode: "YKB-AB-01",
+    channel: "Şube randevusu (elden teslim)",
+    kep: "yapikredi@hs01.kep.tr",
+    processDays: "2–3 iş günü",
+    cautions: [
+      "Yapı Kredi başvurusu için şube randevusu alınması gerekir; formun aslı elden teslim edilir.",
+      "Randevuya imza yetkilisinin bizzat katılması beklenir.",
+    ],
+  },
+};
+
+/** Her bankada tüm başvurular için ortak dikkat noktaları. */
+export const COMMON_ONBOARDING_CAUTIONS = [
+  "Formun tüm sayfaları firma kaşesi ve yetkili ıslak/elektronik imzasıyla imzalanmalıdır.",
+  "Güncel imza sirküleri (aslı veya noter onaylı sureti) ekte gönderilmelidir.",
+  "İmza atan kişinin temsil-ilzam yetkisi MERSIS kaydıyla uyumlu ve güncel olmalıdır.",
+  "Talep edilen tüm IBAN'lar firmaya ait olmalıdır; ortak veya şahıs hesapları kabul edilmez.",
+  "Onay sonrası bankadan gelen SMS/e-posta aktivasyon bağlantısı 24 saat içinde tamamlanmalıdır.",
+];
+
 /** Sentinel companyId meaning "every group company, consolidated". */
 export const ALL_COMPANIES = "all" as const;
 
