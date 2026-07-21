@@ -13,6 +13,13 @@ dist-ssr
 *.local
 .claude/settings.local.json
 
+# Backend (SQLite database + env)
+server/*.db
+server/*.db-shm
+server/*.db-wal
+.env
+.env.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
