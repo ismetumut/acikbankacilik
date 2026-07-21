@@ -10,6 +10,7 @@ const ROUTE_TITLES: Record<string, string> = {
   "/hareketler": "Hesap hareketleri",
   "/bakiyeler": "Bakiyeler",
   "/odeme-tetikleme": "Ödeme tetikleme (TÖS)",
+  "/otomatik-odeme": "Otomatik ödeme",
   "/tahsilat": "Tahsilat",
   "/mutabakat": "Mutabakat",
   "/nakit-akisi": "Nakit akışı tahmini",

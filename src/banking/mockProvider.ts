@@ -17,6 +17,7 @@ import type {
   PendingApproval,
   ReconciliationException,
   RecentPayment,
+  RecurringPayment,
   ReportPackage,
 } from "@/lib/types";
 import {
@@ -39,6 +40,7 @@ import {
   RECENT_CARD_COLLECTIONS,
   RECENT_PAYMENTS,
   RECONCILIATION_EXCEPTIONS,
+  RECURRING_PAYMENTS,
   ERP_CARI_LIST,
   ERP_INVOICES,
   REPORT_PACKAGES,
@@ -52,11 +54,13 @@ import type {
   CardPaymentResult,
   NewPaymentInput,
   NewPaymentLinkInput,
+  NewRecurringInput,
   PaymentBatchInput,
   TransactionPage,
   TransactionQuery,
 } from "./provider";
 import { confirmPayee, simulateStatus, toLegacyStatus } from "@/lib/pis";
+import { nextRunDate } from "@/lib/recurring";
 
 /** Simulates realistic network latency for a mock/demo backend. */
 function delay<T>(value: T, ms = 220): Promise<T> {
@@ -73,6 +77,7 @@ let cardCollections = [...RECENT_CARD_COLLECTIONS];
 const overdueReceivables = [...OVERDUE_RECEIVABLES];
 let reconciliationExceptions = [...RECONCILIATION_EXCEPTIONS];
 let erpMappings: ErpMapping[] = [];
+let recurringPayments = [...RECURRING_PAYMENTS];
 let reportPackages = [...REPORT_PACKAGES];
 let notificationSettings = [...NOTIFICATION_SETTINGS];
 let assistantHistory = [...ASSISTANT_HISTORY];
@@ -240,6 +245,80 @@ export class MockBankingProvider implements BankingProvider {
 
   async confirmPayee(input: { iban: string; name: string }): Promise<CopResult> {
     return delay(confirmPayee(input.iban, input.name, [...ERP_CARI_LIST]), 400);
+  }
+
+  async getRecurringPayments(): Promise<RecurringPayment[]> {
+    return delay([...recurringPayments]);
+  }
+
+  async createRecurringPayment(input: NewRecurringInput): Promise<RecurringPayment> {
+    const account = accounts.find((a) => a.id === input.sourceAccountId);
+    const created: RecurringPayment = {
+      id: `rec-${Date.now()}`,
+      kind: input.kind,
+      label: input.label,
+      bankId: account?.bankId ?? "ziraat",
+      sourceAccountId: input.sourceAccountId,
+      recipient: input.recipient,
+      iban: input.iban,
+      amount: input.amount,
+      amountVariable: input.amountVariable,
+      frequency: input.frequency,
+      nextRun: input.firstRun,
+      endDate: input.endDate,
+      status: "active",
+      vrpMaxPerPeriod: input.vrpMaxPerPeriod,
+      vrpUsedThisPeriod: input.kind === "vrp" ? 0 : undefined,
+      targetAccountId: input.targetAccountId,
+      sweepKeepBalance: input.sweepKeepBalance,
+      runsCount: 0,
+      createdAt: new Date().toISOString(),
+    };
+    recurringPayments = [created, ...recurringPayments];
+    await delay(undefined, 400);
+    return created;
+  }
+
+  async setRecurringStatus(id: string, status: "active" | "paused" | "completed"): Promise<void> {
+    recurringPayments = recurringPayments.map((r) => (r.id === id ? { ...r, status } : r));
+    await delay(undefined, 200);
+  }
+
+  async runRecurringNow(id: string): Promise<void> {
+    const rp = recurringPayments.find((r) => r.id === id);
+    if (!rp) return;
+    const now = new Date().toISOString();
+    const amount = rp.kind === "sweep" ? 42_000 : rp.amount;
+    recentPayments = [
+      {
+        id: `pay-${Date.now()}`,
+        bankId: rp.bankId,
+        recipient: rp.kind === "sweep" ? `Sweep → ${rp.recipient}` : rp.recipient,
+        channel: "FAST",
+        time: "şimdi",
+        amount,
+        status: "Bankada",
+        pisStatus: "submitted",
+        statusHistory: [
+          { status: "created", at: now, note: `${rp.label} otomatik talimatı tetiklendi` },
+          { status: "submitted", at: now },
+        ],
+      },
+      ...recentPayments,
+    ];
+    recurringPayments = recurringPayments.map((r) =>
+      r.id === id
+        ? {
+            ...r,
+            runsCount: (r.runsCount ?? 0) + 1,
+            lastRunAt: now,
+            status: r.frequency === "once" ? ("completed" as const) : r.status,
+            nextRun: r.frequency === "once" ? r.nextRun : nextRunDate(r.nextRun, r.frequency),
+            vrpUsedThisPeriod: r.kind === "vrp" ? (r.vrpUsedThisPeriod ?? 0) + amount : r.vrpUsedThisPeriod,
+          }
+        : r,
+    );
+    await delay(undefined, 400);
   }
 
   async getPaymentLinks(): Promise<PaymentLink[]> {

@@ -6,6 +6,7 @@ import {
   CLIENTS,
   ERP_CARI_LIST,
   ERP_INVOICES,
+  RECURRING_PAYMENTS,
   CONSENTS,
   EXPECTED_INCOMING,
   EXPECTED_OUTGOING,
@@ -44,6 +45,7 @@ export const KEYS = {
   erpCari: "erpCari",
   erpInvoices: "erpInvoices",
   erpMappings: "erpMappings",
+  recurring: "recurring",
 } as const;
 
 /**
@@ -73,6 +75,7 @@ export function runSeed(): void {
     [KEYS.erpCari]: ERP_CARI_LIST,
     [KEYS.erpInvoices]: ERP_INVOICES,
     [KEYS.erpMappings]: [],
+    [KEYS.recurring]: RECURRING_PAYMENTS,
   };
 
   // Statik/türetilmiş koleksiyonlar (kullanıcı mutasyonu yok) her açılışta tazelenir,

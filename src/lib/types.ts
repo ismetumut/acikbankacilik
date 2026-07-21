@@ -183,6 +183,38 @@ export interface RecentPayment {
   copOutcome?: CopOutcome;
 }
 
+/**
+ * Otomatik ödeme talimatı — planlı, tekrarlı (standing order), VRP (değişken tekrarlı)
+ * ve sweep (hesaplar arası otomatik aktarım) tek modelde.
+ */
+export type RecurringKind = "scheduled" | "standing_order" | "vrp" | "sweep";
+export type RecurringFrequency = "once" | "weekly" | "monthly";
+
+export interface RecurringPayment {
+  id: string;
+  kind: RecurringKind;
+  label: string;
+  bankId: BankId;
+  sourceAccountId: string;
+  recipient: string;
+  iban?: string;
+  amount: number; // sabit tutar · VRP/sweep için üst sınır
+  amountVariable?: boolean; // VRP: her seferinde değişebilir (amount = üst sınır)
+  frequency: RecurringFrequency;
+  nextRun: string; // ISO
+  endDate?: string;
+  status: "active" | "paused" | "completed";
+  // VRP alanları
+  vrpMaxPerPeriod?: number;
+  vrpUsedThisPeriod?: number;
+  // sweep alanları
+  targetAccountId?: string;
+  sweepKeepBalance?: number; // bu bakiyeyi tut, fazlasını hedefe aktar
+  runsCount?: number;
+  lastRunAt?: string;
+  createdAt: string;
+}
+
 /** Confirmation of Payee — göndermeden önce alıcı adı/IBAN doğrulaması. */
 export type CopOutcome = "match" | "close_match" | "no_match" | "unavailable";
 

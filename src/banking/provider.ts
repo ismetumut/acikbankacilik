@@ -20,6 +20,9 @@ import type {
   PendingApproval,
   ReconciliationException,
   RecentPayment,
+  RecurringFrequency,
+  RecurringKind,
+  RecurringPayment,
   ReportPackage,
   Transaction,
 } from "@/lib/types";
@@ -69,6 +72,22 @@ export interface ApprovalChainInput {
 export interface PaymentBatchInput {
   lines: PaymentLineInput[];
   chain: ApprovalChainInput[];
+}
+
+export interface NewRecurringInput {
+  kind: RecurringKind;
+  label: string;
+  sourceAccountId: string;
+  recipient: string;
+  iban?: string;
+  amount: number;
+  amountVariable?: boolean;
+  frequency: RecurringFrequency;
+  firstRun: string; // ISO
+  endDate?: string;
+  vrpMaxPerPeriod?: number;
+  targetAccountId?: string;
+  sweepKeepBalance?: number;
 }
 
 export interface NewPaymentLinkInput {
@@ -128,6 +147,13 @@ export interface BankingProvider {
   createPayment(input: NewPaymentInput): Promise<RecentPayment>;
   /** Confirmation of Payee: göndermeden önce alıcı adı/IBAN doğrulaması. */
   confirmPayee(input: { iban: string; name: string }): Promise<CopResult>;
+
+  // Otomatik ödeme talimatları: planlı / tekrarlı / VRP / sweep
+  getRecurringPayments(): Promise<RecurringPayment[]>;
+  createRecurringPayment(input: NewRecurringInput): Promise<RecurringPayment>;
+  setRecurringStatus(id: string, status: "active" | "paused" | "completed"): Promise<void>;
+  /** Talimatı hemen çalıştırır (bir ödeme oluşturur, sonraki tarihi ilerletir). */
+  runRecurringNow(id: string): Promise<void>;
 
   getPaymentLinks(): Promise<PaymentLink[]>;
   createPaymentLink(input: NewPaymentLinkInput): Promise<PaymentLink>;

@@ -11,6 +11,7 @@ import type {
   PendingApproval,
   ReconciliationException,
   RecentPayment,
+  RecurringPayment,
   ReportPackage,
   Transaction,
 } from "../../src/lib/types";
@@ -22,6 +23,7 @@ import {
   lookupBin,
 } from "../../src/lib/mockData";
 import { confirmPayee, simulateStatus, toLegacyStatus } from "../../src/lib/pis";
+import { nextRunDate } from "../../src/lib/recurring";
 import { getCollection, setCollection, findUserByEmail } from "./db";
 import { KEYS } from "./seed";
 import { requireAuth, signToken, verifyPassword, type AuthedRequest } from "./auth";
@@ -246,6 +248,88 @@ apiRouter.post("/payments", (req, res) => {
   };
   setCollection(KEYS.payments, [payment, ...getCollection<RecentPayment>(KEYS.payments)]);
   res.json(payment);
+});
+
+/* ----------------------------------------------------------- recurring ---- */
+
+apiRouter.get("/recurring", (_req, res) => res.json(getCollection<RecurringPayment>(KEYS.recurring)));
+
+apiRouter.post("/recurring", (req, res) => {
+  const input = req.body ?? {};
+  const account = getCollection<Account>(KEYS.accounts).find((a) => a.id === input.sourceAccountId);
+  const created: RecurringPayment = {
+    id: `rec-${Date.now()}`,
+    kind: input.kind,
+    label: input.label,
+    bankId: account?.bankId ?? "ziraat",
+    sourceAccountId: input.sourceAccountId,
+    recipient: input.recipient,
+    iban: input.iban,
+    amount: input.amount,
+    amountVariable: input.amountVariable,
+    frequency: input.frequency,
+    nextRun: input.firstRun,
+    endDate: input.endDate,
+    status: "active",
+    vrpMaxPerPeriod: input.vrpMaxPerPeriod,
+    vrpUsedThisPeriod: input.kind === "vrp" ? 0 : undefined,
+    targetAccountId: input.targetAccountId,
+    sweepKeepBalance: input.sweepKeepBalance,
+    runsCount: 0,
+    createdAt: new Date().toISOString(),
+  };
+  setCollection(KEYS.recurring, [created, ...getCollection<RecurringPayment>(KEYS.recurring)]);
+  res.json(created);
+});
+
+apiRouter.post("/recurring/:id/status", (req, res) => {
+  const { status } = (req.body ?? {}) as { status?: string };
+  const list = getCollection<RecurringPayment>(KEYS.recurring).map((r) =>
+    r.id === req.params.id ? { ...r, status: status as RecurringPayment["status"] } : r,
+  );
+  setCollection(KEYS.recurring, list);
+  res.json({ ok: true });
+});
+
+apiRouter.post("/recurring/:id/run", (req, res) => {
+  const list = getCollection<RecurringPayment>(KEYS.recurring);
+  const rp = list.find((r) => r.id === req.params.id);
+  if (!rp) return res.json({ ok: true });
+  const now = new Date().toISOString();
+  const amount = rp.kind === "sweep" ? 42_000 : rp.amount;
+  setCollection(KEYS.payments, [
+    {
+      id: `pay-${Date.now()}`,
+      bankId: rp.bankId,
+      recipient: rp.kind === "sweep" ? `Sweep → ${rp.recipient}` : rp.recipient,
+      channel: "FAST",
+      time: "şimdi",
+      amount,
+      status: "Bankada",
+      pisStatus: "submitted",
+      statusHistory: [
+        { status: "created", at: now, note: `${rp.label} otomatik talimatı tetiklendi` },
+        { status: "submitted", at: now },
+      ],
+    },
+    ...getCollection<RecentPayment>(KEYS.payments),
+  ]);
+  setCollection(
+    KEYS.recurring,
+    list.map((r) =>
+      r.id === rp.id
+        ? {
+            ...r,
+            runsCount: (r.runsCount ?? 0) + 1,
+            lastRunAt: now,
+            status: r.frequency === "once" ? ("completed" as const) : r.status,
+            nextRun: r.frequency === "once" ? r.nextRun : nextRunDate(r.nextRun, r.frequency),
+            vrpUsedThisPeriod: r.kind === "vrp" ? (r.vrpUsedThisPeriod ?? 0) + amount : r.vrpUsedThisPeriod,
+          }
+        : r,
+    ),
+  );
+  res.json({ ok: true });
 });
 
 /* -------------------------------------------------------- payment links --- */

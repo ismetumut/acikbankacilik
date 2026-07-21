@@ -18,6 +18,7 @@ import type {
   PendingApproval,
   ReconciliationException,
   RecentPayment,
+  RecurringPayment,
   ReportPackage,
 } from "@/lib/types";
 import { api } from "@/lib/api";
@@ -27,6 +28,7 @@ import type {
   CardPaymentResult,
   NewPaymentInput,
   NewPaymentLinkInput,
+  NewRecurringInput,
   PaymentBatchInput,
   TransactionPage,
   TransactionQuery,
@@ -81,6 +83,19 @@ export class HttpBankingProvider implements BankingProvider {
   }
   confirmPayee(input: { iban: string; name: string }): Promise<CopResult> {
     return api<CopResult>("/payments/confirm-payee", { method: "POST", body: input });
+  }
+
+  getRecurringPayments(): Promise<RecurringPayment[]> {
+    return api<RecurringPayment[]>("/recurring");
+  }
+  createRecurringPayment(input: NewRecurringInput): Promise<RecurringPayment> {
+    return api<RecurringPayment>("/recurring", { method: "POST", body: input });
+  }
+  async setRecurringStatus(id: string, status: "active" | "paused" | "completed"): Promise<void> {
+    await api(`/recurring/${id}/status`, { method: "POST", body: { status } });
+  }
+  async runRecurringNow(id: string): Promise<void> {
+    await api(`/recurring/${id}/run`, { method: "POST" });
   }
 
   getPaymentLinks(): Promise<PaymentLink[]> {

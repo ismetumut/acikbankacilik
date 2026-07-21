@@ -8,6 +8,7 @@ const Balances = lazy(() => import("@/pages/Balances").then((m) => ({ default: m
 const PaymentInitiation = lazy(() =>
   import("@/pages/PaymentInitiation").then((m) => ({ default: m.PaymentInitiation })),
 );
+const AutoPayments = lazy(() => import("@/pages/AutoPayments").then((m) => ({ default: m.AutoPayments })));
 const Collections = lazy(() => import("@/pages/Collections").then((m) => ({ default: m.Collections })));
 const Reconciliation = lazy(() => import("@/pages/Reconciliation").then((m) => ({ default: m.Reconciliation })));
 const CashFlow = lazy(() => import("@/pages/CashFlow").then((m) => ({ default: m.CashFlow })));
@@ -32,6 +33,7 @@ export default function App() {
             <Route path="/hareketler" element={<Transactions />} />
             <Route path="/bakiyeler" element={<Balances />} />
             <Route path="/odeme-tetikleme" element={<PaymentInitiation />} />
+            <Route path="/otomatik-odeme" element={<AutoPayments />} />
             <Route path="/tahsilat" element={<Collections />} />
             <Route path="/mutabakat" element={<Reconciliation />} />
             <Route path="/nakit-akisi" element={<CashFlow />} />

@@ -17,6 +17,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Hareketler", path: "/hareketler" },
       { label: "Bakiyeler", path: "/bakiyeler" },
       { label: "Ödeme tetikleme", path: "/odeme-tetikleme", badgeKey: "approvals" },
+      { label: "Otomatik ödeme", path: "/otomatik-odeme" },
       { label: "Tahsilat", path: "/tahsilat" },
       { label: "Mutabakat", path: "/mutabakat", badgeKey: "reconciliation" },
       { label: "Nakit akışı", path: "/nakit-akisi" },
