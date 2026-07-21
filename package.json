@@ -10,7 +10,8 @@
     "dev:all": "concurrently -n api,web -c green,cyan \"npm:server\" \"npm:dev\"",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "deploy": "npm run build && node scripts/deploy.mjs"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
@@ -37,6 +38,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "autoprefixer": "^10.5.4",
+    "basic-ftp": "^6.0.1",
     "concurrently": "^9.1.2",
     "oxlint": "^1.71.0",
     "postcss": "^8.5.20",

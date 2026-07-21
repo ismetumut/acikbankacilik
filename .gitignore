@@ -33,3 +33,4 @@ akort-frontend-monsterasp.zip
 *.njsproj
 *.sln
 *.sw?
+.env.deploy
