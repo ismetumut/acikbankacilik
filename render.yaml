@@ -1,0 +1,26 @@
+# Render.com blueprint — Akort backend API'sini tek tıkla ayağa kaldırır.
+# https://render.com → New → Blueprint → bu repoyu seç.
+#
+# NOT: Kalıcı disk (SQLite verisinin yeniden dağıtımlarda korunması) ücretli bir
+# plan gerektirir. Ücretsiz denemek isterseniz `disk` bloğunu kaldırın; veri her
+# dağıtımda seed'den yeniden oluşur. Kalıcı üretim için Postgres'e geçin.
+services:
+  - type: web
+    name: akort-api
+    runtime: node
+    plan: starter
+    # tsx bir devDependency olduğu için --include=dev şart.
+    buildCommand: npm install --include=dev
+    startCommand: npm run server:start
+    healthCheckPath: /health
+    envVars:
+      - key: JWT_SECRET
+        generateValue: true
+      - key: SEED_PASSWORD
+        sync: false # dağıtım sırasında panelden girin
+      - key: DATABASE_PATH
+        value: /data/akort.db
+    disk:
+      name: akort-data
+      mountPath: /data
+      sizeGB: 1
