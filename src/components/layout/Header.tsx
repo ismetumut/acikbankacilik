@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { useBanking } from "@/banking/context";
 import { useCompany } from "@/company/context";
+import { useAuth } from "@/auth/context";
 import { useAsync } from "@/lib/useAsync";
 
 const ROUTE_TITLES: Record<string, string> = {
@@ -26,6 +27,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const navigate = useNavigate();
   const banking = useBanking();
   const { companyId } = useCompany();
+  const { user, authRequired, logout } = useAuth();
   const { data: accounts } = useAsync(() => banking.getAccounts(companyId), [companyId]);
   const [query, setQuery] = useState("");
 
@@ -75,13 +77,31 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
           <span className="h-2 w-2 rounded-full bg-brand-400" />
           {bankCount ?? "…"} banka bağlı
         </span>
-        <button
-          type="button"
-          title="Karanlık tema yakında"
-          className="hidden rounded-full border border-line px-3 py-2 text-xs font-semibold text-ink-900/60 sm:inline-flex"
-        >
-          ☾ Karanlık
-        </button>
+        {authRequired && user ? (
+          <div className="flex items-center gap-2">
+            <span
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-brand-100 font-display text-sm font-bold text-brand-600"
+              title={`${user.name} · ${user.email}`}
+            >
+              {user.name.slice(0, 1).toUpperCase()}
+            </span>
+            <button
+              type="button"
+              onClick={logout}
+              className="hidden rounded-full border border-line px-3 py-2 text-xs font-semibold text-ink-900 hover:bg-cream-100 sm:inline-flex"
+            >
+              Çıkış
+            </button>
+          </div>
+        ) : (
+          <button
+            type="button"
+            title="Karanlık tema yakında"
+            className="hidden rounded-full border border-line px-3 py-2 text-xs font-semibold text-ink-900/60 sm:inline-flex"
+          >
+            ☾ Karanlık
+          </button>
+        )}
       </div>
     </header>
   );
