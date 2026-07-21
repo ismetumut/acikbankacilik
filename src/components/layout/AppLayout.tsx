@@ -16,8 +16,13 @@ export function AppLayout() {
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="flex min-w-0 flex-1 flex-col">
         <Header onMenuClick={() => setSidebarOpen(true)} />
-        <main className="flex-1 overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
-          <Outlet />
+        <main className="flex flex-1 flex-col overflow-y-auto px-4 py-4 sm:px-6 sm:py-6 lg:px-8">
+          <div className="flex-1">
+            <Outlet />
+          </div>
+          <footer className="mt-8 border-t border-line pt-4 text-center text-xs text-muted">
+            © 2026 Trailie. Tüm hakları saklıdır.
+          </footer>
         </main>
       </div>
     </div>
