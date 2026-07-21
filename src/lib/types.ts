@@ -149,6 +149,26 @@ export interface MatchInput {
   iban?: string;
 }
 
+/**
+ * PIS ödeme durumu yaşam döngüsü — küresel Open Banking standardıyla hizalı
+ * (created → submitted → AcceptedSettlementInProgress → completed / rejected).
+ */
+export type PisStatus =
+  | "created" // Oluşturuldu
+  | "pending_cop" // Alıcı doğrulanıyor (Confirmation of Payee)
+  | "awaiting_approval" // Onay zincirinde bekliyor
+  | "submitted" // Bankaya iletildi
+  | "settling" // Takasta (AcceptedSettlementInProgress)
+  | "completed" // Tamamlandı
+  | "rejected" // Reddedildi
+  | "failed"; // Başarısız
+
+export interface PisStatusEvent {
+  status: PisStatus;
+  at: string; // ISO
+  note?: string;
+}
+
 export interface RecentPayment {
   id: string;
   bankId: BankId;
@@ -156,7 +176,21 @@ export interface RecentPayment {
   channel: "FAST" | "EFT" | "Havale";
   time: string;
   amount: number;
-  status: "Tamamlandı" | "Bankada" | "Reddedildi";
+  status: "Tamamlandı" | "Bankada" | "Reddedildi"; // geriye dönük özet
+  pisStatus?: PisStatus;
+  statusHistory?: PisStatusEvent[];
+  idempotencyKey?: string;
+  copOutcome?: CopOutcome;
+}
+
+/** Confirmation of Payee — göndermeden önce alıcı adı/IBAN doğrulaması. */
+export type CopOutcome = "match" | "close_match" | "no_match" | "unavailable";
+
+export interface CopResult {
+  outcome: CopOutcome;
+  /** close_match/no_match durumunda bankadaki gerçek hesap adı önerisi. */
+  suggestedName?: string;
+  reason: string;
 }
 
 export type PaymentLinkChannel = "WhatsApp" | "e-posta" | "SMS" | "QR";

@@ -7,6 +7,7 @@ import type {
   CashFlowPoint,
   ClientSummary,
   ConsentGrant,
+  CopResult,
   ErpCari,
   ErpInvoice,
   ErpMapping,
@@ -55,6 +56,7 @@ import type {
   TransactionPage,
   TransactionQuery,
 } from "./provider";
+import { confirmPayee, simulateStatus, toLegacyStatus } from "@/lib/pis";
 
 /** Simulates realistic network latency for a mock/demo backend. */
 function delay<T>(value: T, ms = 220): Promise<T> {
@@ -154,6 +156,11 @@ export class MockBankingProvider implements BankingProvider {
           time: "şimdi",
           amount: approval.amount,
           status: "Bankada",
+          pisStatus: "submitted",
+          statusHistory: [
+            { status: "awaiting_approval", at: new Date().toISOString() },
+            { status: "submitted", at: new Date().toISOString(), note: "Onay zinciri tamamlandı, bankaya iletildi" },
+          ],
         },
         ...recentPayments,
       ];
@@ -186,11 +193,31 @@ export class MockBankingProvider implements BankingProvider {
   }
 
   async getRecentPayments(): Promise<RecentPayment[]> {
+    // Bankaya iletilen ödemelerin durumunu zamanla ilerlet (submitted→settling→completed).
+    recentPayments = recentPayments.map((p) => {
+      if (!p.pisStatus || !["submitted", "settling"].includes(p.pisStatus)) return p;
+      const submittedAt = p.statusHistory?.find((e) => e.status === "submitted")?.at;
+      if (!submittedAt) return p;
+      const next = simulateStatus(submittedAt);
+      if (next === p.pisStatus) return p;
+      return {
+        ...p,
+        pisStatus: next,
+        status: toLegacyStatus(next),
+        statusHistory: [...(p.statusHistory ?? []), { status: next, at: new Date().toISOString() }],
+      };
+    });
     return delay(recentPayments);
   }
 
   async createPayment(input: NewPaymentInput): Promise<RecentPayment> {
+    // Idempotency: aynı anahtarla gelen ödeme tekrarlanmaz.
+    if (input.idempotencyKey) {
+      const existing = recentPayments.find((p) => p.idempotencyKey === input.idempotencyKey);
+      if (existing) return delay(existing, 120);
+    }
     const account = accounts.find((a) => a.id === input.sourceAccountId);
+    const now = new Date().toISOString();
     const payment: RecentPayment = {
       id: `pay-${Date.now()}`,
       bankId: account?.bankId ?? "ziraat",
@@ -199,10 +226,20 @@ export class MockBankingProvider implements BankingProvider {
       time: "şimdi",
       amount: input.amount,
       status: "Bankada",
+      pisStatus: "submitted",
+      idempotencyKey: input.idempotencyKey,
+      statusHistory: [
+        { status: "created", at: now },
+        { status: "submitted", at: now, note: `${input.channel} ile bankaya iletildi` },
+      ],
     };
     recentPayments = [payment, ...recentPayments];
     await delay(undefined, 500);
     return payment;
+  }
+
+  async confirmPayee(input: { iban: string; name: string }): Promise<CopResult> {
+    return delay(confirmPayee(input.iban, input.name, [...ERP_CARI_LIST]), 400);
   }
 
   async getPaymentLinks(): Promise<PaymentLink[]> {

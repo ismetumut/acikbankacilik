@@ -7,6 +7,7 @@ import type {
   CashFlowPoint,
   ClientSummary,
   ConsentGrant,
+  CopResult,
   ErpCari,
   ErpInvoice,
   ErpMapping,
@@ -77,6 +78,9 @@ export class HttpBankingProvider implements BankingProvider {
   }
   createPayment(input: NewPaymentInput): Promise<RecentPayment> {
     return api<RecentPayment>("/payments", { method: "POST", body: input });
+  }
+  confirmPayee(input: { iban: string; name: string }): Promise<CopResult> {
+    return api<CopResult>("/payments/confirm-payee", { method: "POST", body: input });
   }
 
   getPaymentLinks(): Promise<PaymentLink[]> {

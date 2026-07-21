@@ -8,6 +8,7 @@ import type {
   CashFlowPoint,
   ClientSummary,
   ConsentGrant,
+  CopResult,
   ErpCari,
   ErpInvoice,
   ErpMapping,
@@ -47,6 +48,8 @@ export interface NewPaymentInput {
   amount: number;
   description: string;
   channel: "FAST" | "EFT" | "Havale";
+  /** Aynı ödemenin tekrar gönderilmesini engeller (idempotency). */
+  idempotencyKey?: string;
 }
 
 export interface PaymentLineInput {
@@ -123,6 +126,8 @@ export interface BankingProvider {
 
   getRecentPayments(): Promise<RecentPayment[]>;
   createPayment(input: NewPaymentInput): Promise<RecentPayment>;
+  /** Confirmation of Payee: göndermeden önce alıcı adı/IBAN doğrulaması. */
+  confirmPayee(input: { iban: string; name: string }): Promise<CopResult>;
 
   getPaymentLinks(): Promise<PaymentLink[]>;
   createPaymentLink(input: NewPaymentLinkInput): Promise<PaymentLink>;

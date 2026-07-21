@@ -4,6 +4,7 @@ import type {
   AssistantExchange,
   CardCollection,
   ConsentGrant,
+  ErpCari,
   ErpMapping,
   NotificationSetting,
   PaymentLink,
@@ -20,6 +21,7 @@ import {
   bankOf,
   lookupBin,
 } from "../../src/lib/mockData";
+import { confirmPayee, simulateStatus, toLegacyStatus } from "../../src/lib/pis";
 import { getCollection, setCollection, findUserByEmail } from "./db";
 import { KEYS } from "./seed";
 import { requireAuth, signToken, verifyPassword, type AuthedRequest } from "./auth";
@@ -130,6 +132,7 @@ apiRouter.post("/approvals/:id/decide", (req, res) => {
     approvals = approvals.filter((a) => a.id !== id);
     setCollection(KEYS.approvals, approvals);
     const payments = getCollection<RecentPayment>(KEYS.payments);
+    const now = new Date().toISOString();
     setCollection(KEYS.payments, [
       {
         id: `pay-${Date.now()}`,
@@ -139,6 +142,11 @@ apiRouter.post("/approvals/:id/decide", (req, res) => {
         time: "şimdi",
         amount: approval.amount,
         status: "Bankada",
+        pisStatus: "submitted",
+        statusHistory: [
+          { status: "awaiting_approval", at: now },
+          { status: "submitted", at: now, note: "Onay zinciri tamamlandı, bankaya iletildi" },
+        ],
       },
       ...payments,
     ]);
@@ -186,11 +194,41 @@ apiRouter.post("/approvals/batch", (req, res) => {
 
 /* ------------------------------------------------------------ payments ---- */
 
-apiRouter.get("/payments", (_req, res) => res.json(getCollection<RecentPayment>(KEYS.payments)));
+apiRouter.get("/payments", (_req, res) => {
+  // Bankaya iletilen ödemelerin durumunu zamanla ilerlet (submitted→settling→completed).
+  const list = getCollection<RecentPayment>(KEYS.payments).map((p) => {
+    if (!p.pisStatus || !["submitted", "settling"].includes(p.pisStatus)) return p;
+    const submittedAt = p.statusHistory?.find((e) => e.status === "submitted")?.at;
+    if (!submittedAt) return p;
+    const next = simulateStatus(submittedAt);
+    if (next === p.pisStatus) return p;
+    return {
+      ...p,
+      pisStatus: next,
+      status: toLegacyStatus(next),
+      statusHistory: [...(p.statusHistory ?? []), { status: next, at: new Date().toISOString() }],
+    };
+  });
+  setCollection(KEYS.payments, list);
+  res.json(list);
+});
+
+// Confirmation of Payee: göndermeden önce alıcı adı/IBAN doğrulaması.
+apiRouter.post("/payments/confirm-payee", (req, res) => {
+  const { iban, name } = (req.body ?? {}) as { iban?: string; name?: string };
+  if (!iban || !name) return res.status(400).json({ error: "iban ve name zorunlu" });
+  res.json(confirmPayee(iban, name, getCollection<ErpCari>(KEYS.erpCari)));
+});
 
 apiRouter.post("/payments", (req, res) => {
   const input = req.body ?? {};
+  // Idempotency: aynı anahtarla gelen ödeme tekrarlanmaz.
+  if (input.idempotencyKey) {
+    const existing = getCollection<RecentPayment>(KEYS.payments).find((p) => p.idempotencyKey === input.idempotencyKey);
+    if (existing) return res.json(existing);
+  }
   const account = getCollection<Account>(KEYS.accounts).find((a) => a.id === input.sourceAccountId);
+  const now = new Date().toISOString();
   const payment: RecentPayment = {
     id: `pay-${Date.now()}`,
     bankId: account?.bankId ?? "ziraat",
@@ -199,6 +237,12 @@ apiRouter.post("/payments", (req, res) => {
     time: "şimdi",
     amount: input.amount,
     status: "Bankada",
+    pisStatus: "submitted",
+    idempotencyKey: input.idempotencyKey,
+    statusHistory: [
+      { status: "created", at: now },
+      { status: "submitted", at: now, note: `${input.channel} ile bankaya iletildi` },
+    ],
   };
   setCollection(KEYS.payments, [payment, ...getCollection<RecentPayment>(KEYS.payments)]);
   res.json(payment);

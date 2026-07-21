@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useBanking } from "@/banking/context";
 import { useCompany } from "@/company/context";
 import { useAsync } from "@/lib/useAsync";
@@ -11,8 +11,15 @@ import { Money } from "@/components/ui/Money";
 import { LoadingRows } from "@/components/ui/Skeleton";
 import { formatCurrency } from "@/lib/format";
 import { COMPANY, CURRENCY_SYMBOLS, ERP_CARI_LIST, TEAM_MEMBERS } from "@/lib/mockData";
+import { PIS_STATUS_META } from "@/lib/pis";
 import type { ApprovalChainInput, PaymentLineInput } from "@/banking/provider";
-import type { ApprovalStep } from "@/lib/types";
+import type { ApprovalStep, CopResult, PisStatus } from "@/lib/types";
+
+function pisBadgeTone(s: PisStatus): "positive" | "negative" | "warning" {
+  if (s === "completed") return "positive";
+  if (s === "rejected" || s === "failed") return "negative";
+  return "warning";
+}
 
 const CHANNELS = ["FAST", "EFT", "Havale"] as const;
 const MAX_APPROVERS = 3;
@@ -61,6 +68,7 @@ export function PaymentInitiation() {
   ]);
   const [submitting, setSubmitting] = useState(false);
   const [decidingId, setDecidingId] = useState<string | null>(null);
+  const [copChecks, setCopChecks] = useState<{ recipient: string; result: CopResult }[]>([]);
 
   const baseTodayTotal = 214_300;
   const triggeredJustNow = payments?.filter((p) => p.time === "şimdi").reduce((s, p) => s + p.amount, 0) ?? 0;
@@ -121,6 +129,20 @@ export function PaymentInitiation() {
       };
     });
 
+    // Confirmation of Payee: göndermeden önce her satırda alıcı adı/IBAN doğrula.
+    // İlk denemede uyuşmazlık varsa uyar ve dur; kullanıcı tekrar basınca (bilerek) devam.
+    if (copChecks.length === 0) {
+      const results = await Promise.all(
+        lineInputs.map(async (l) => ({ recipient: l.recipient, result: await banking.confirmPayee({ iban: l.iban, name: l.recipient }) })),
+      );
+      const problems = results.filter((r) => r.result.outcome === "no_match" || r.result.outcome === "close_match");
+      if (problems.length > 0) {
+        setCopChecks(problems);
+        setSubmitting(false);
+        return;
+      }
+    }
+
     const chainInput: ApprovalChainInput[] = [
       { role: "Düzenleyen", person: COMPANY.userName },
       { role: "Kontrol eden", person: controller },
@@ -129,6 +151,7 @@ export function PaymentInitiation() {
 
     await banking.submitPaymentBatch({ lines: lineInputs, chain: chainInput });
     setSubmitting(false);
+    setCopChecks([]);
     setLines([emptyLine()]);
     setController("");
     setApprovers([{ key: Math.random().toString(36).slice(2), person: "" }]);
@@ -142,6 +165,15 @@ export function PaymentInitiation() {
     refetchApprovals();
     refetchPayments();
   }
+
+  // Ödeme durumu canlı ilerlesin diye bankaya iletilmiş ödeme varken periyodik yenile.
+  const hasSettlingPayment = payments?.some((p) => p.pisStatus === "submitted" || p.pisStatus === "settling");
+  useEffect(() => {
+    if (!hasSettlingPayment) return;
+    const t = setInterval(() => refetchPayments(), 3500);
+    return () => clearInterval(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hasSettlingPayment]);
 
   return (
     <div className="space-y-6">
@@ -262,12 +294,38 @@ export function PaymentInitiation() {
               </div>
             </div>
 
-            <div className="rounded-xl bg-brand-50 p-3 text-xs text-ink-900/80">
-              <span className="font-bold">AI kontrollü:</span> Alıcı IBAN geçmişteki ödemelerle uyumlu · fatura açık
-              bakiyesiyle birebir eşleşiyor.
-            </div>
-            <Button type="submit" variant="primary" className="w-full" disabled={submitting || !canSubmit}>
-              {submitting ? "Gönderiliyor…" : `Onaya gönder → (${lines.length})`}
+            {copChecks.length === 0 ? (
+              <div className="rounded-xl bg-brand-50 p-3 text-xs text-ink-900/80">
+                <span className="font-bold">Confirmation of Payee:</span> Onaya göndermeden önce her alıcının adı,
+                IBAN'ın gerçek hesap sahibiyle otomatik doğrulanır.
+              </div>
+            ) : (
+              <div className="rounded-xl border border-warning-700/30 bg-warning-100 p-3 text-xs text-warning-700">
+                <p className="mb-1.5 font-bold">⚠ Alıcı doğrulama uyarısı — göndermeden kontrol edin</p>
+                <ul className="space-y-1">
+                  {copChecks.map((c, i) => (
+                    <li key={i}>
+                      <span className="font-semibold">{c.recipient}</span>: {c.result.reason}
+                      {c.result.suggestedName && (
+                        <> · bankadaki ad: <span className="font-semibold">{c.result.suggestedName}</span></>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1.5">Yine de göndermek için butona tekrar basın.</p>
+              </div>
+            )}
+            <Button
+              type="submit"
+              variant="primary"
+              className="w-full"
+              disabled={submitting || !canSubmit}
+            >
+              {submitting
+                ? "Gönderiliyor…"
+                : copChecks.length > 0
+                  ? `Uyarıya rağmen onaya gönder → (${lines.length})`
+                  : `Onaya gönder → (${lines.length})`}
             </Button>
             <p className="text-center text-[11px] leading-relaxed text-muted">
               Çift onay kuralı aktif: ₺25.000 üstü ödemeler ikinci yetkilinin onayını bekler. Tetikleme TCMB Açık
@@ -365,9 +423,18 @@ export function PaymentInitiation() {
                           <Money value={p.amount} size="sm" />
                         </td>
                         <td className="py-2.5 text-right">
-                          <Badge tone={p.status === "Tamamlandı" ? "positive" : p.status === "Reddedildi" ? "negative" : "warning"}>
-                            {p.status}
-                          </Badge>
+                          {p.pisStatus ? (
+                            <Badge tone={pisBadgeTone(p.pisStatus)}>
+                              {(p.pisStatus === "submitted" || p.pisStatus === "settling") && (
+                                <span className="mr-1 inline-block animate-pulse">●</span>
+                              )}
+                              {PIS_STATUS_META[p.pisStatus].label}
+                            </Badge>
+                          ) : (
+                            <Badge tone={p.status === "Tamamlandı" ? "positive" : p.status === "Reddedildi" ? "negative" : "warning"}>
+                              {p.status}
+                            </Badge>
+                          )}
                         </td>
                       </tr>
                     ))}
