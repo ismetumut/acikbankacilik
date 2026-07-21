@@ -12,13 +12,22 @@ import { Toggle } from "@/components/ui/Toggle";
 import { LoadingRows, Skeleton } from "@/components/ui/Skeleton";
 import { formatCurrency, formatDate, formatDateTime, formatRelative, formatSignedCurrency } from "@/lib/format";
 import { ANOMALY, CURRENCY_SYMBOLS, DEMO_NOW, bankOf, companyOf, convertToTRY, totalBalanceFor } from "@/lib/mockData";
-import { useState, type ReactNode } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import type { Account, BankId } from "@/lib/types";
 
 interface DropTarget {
   col: ColumnId;
   beforeId: string | null;
 }
+
+type CashFlowPreset = "7" | "30" | "90" | "custom";
+
+const CASH_FLOW_PRESETS: { id: CashFlowPreset; label: string }[] = [
+  { id: "7", label: "7 gün" },
+  { id: "30", label: "30 gün" },
+  { id: "90", label: "90 gün" },
+  { id: "custom", label: "Özel" },
+];
 
 export function Overview() {
   const banking = useBanking();
@@ -40,6 +49,12 @@ export function Overview() {
   const [customizeOpen, setCustomizeOpen] = useState(false);
   const [draggedId, setDraggedId] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<DropTarget | null>(null);
+  // Nakit akışı grafiği tarih aralığı filtresi
+  const [cfPreset, setCfPreset] = useState<CashFlowPreset>("30");
+  const dataStart = cashFlow?.[0]?.date.slice(0, 10) ?? "";
+  const dataEnd = cashFlow?.at(-1)?.date.slice(0, 10) ?? "";
+  const [customStart, setCustomStart] = useState("");
+  const [customEnd, setCustomEnd] = useState("");
 
   const scopeLabel = isConsolidated(companyId) ? "Tüm grup" : (companyOf(companyId)?.shortName ?? "");
 
@@ -62,8 +77,22 @@ export function Overview() {
     accountsByBank.set(a.bankId, [...(accountsByBank.get(a.bankId) ?? []), a]);
   });
 
-  const totalIncoming = cashFlow?.reduce((s, p) => s + p.incoming, 0) ?? 0;
-  const totalOutgoing = cashFlow?.reduce((s, p) => s + p.outgoing, 0) ?? 0;
+  // Seçili aralığa göre nakit akışı: ön ayarlar son N günü, "custom" iki tarih arasını alır.
+  const filteredCashFlow = useMemo(() => {
+    if (!cashFlow) return undefined;
+    if (cfPreset === "custom") {
+      const lo = customStart || dataStart;
+      const hi = customEnd || dataEnd;
+      return cashFlow.filter((p) => {
+        const d = p.date.slice(0, 10);
+        return d >= lo && d <= hi;
+      });
+    }
+    return cashFlow.slice(-Number(cfPreset));
+  }, [cashFlow, cfPreset, customStart, customEnd, dataStart, dataEnd]);
+
+  const totalIncoming = filteredCashFlow?.reduce((s, p) => s + p.incoming, 0) ?? 0;
+  const totalOutgoing = filteredCashFlow?.reduce((s, p) => s + p.outgoing, 0) ?? 0;
   const todayIncoming = cashFlow?.at(-1)?.incoming ?? 0;
   const todayOutgoing = cashFlow?.at(-1)?.outgoing ?? 0;
   const matchedPct = 94;
@@ -80,7 +109,11 @@ export function Overview() {
         <CardHeader>
           <div>
             <CardTitle>Nakit akışı</CardTitle>
-            <p className="text-xs text-muted">Son 30 gün</p>
+            <p className="text-xs text-muted">
+              {filteredCashFlow && filteredCashFlow.length > 0
+                ? `${formatDate(filteredCashFlow[0].date)} – ${formatDate(filteredCashFlow.at(-1)!.date)} · ${filteredCashFlow.length} gün`
+                : "Aralık seçin"}
+            </p>
           </div>
           <div className="flex items-center gap-4 text-xs font-semibold">
             <span className="flex items-center gap-1.5 text-brand-500">
@@ -91,10 +124,51 @@ export function Overview() {
             </span>
           </div>
         </CardHeader>
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <div className="flex rounded-lg border border-line bg-cream-100 p-0.5">
+            {CASH_FLOW_PRESETS.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setCfPreset(p.id)}
+                className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+                  cfPreset === p.id ? "bg-white text-ink-900 shadow-sm" : "text-muted hover:text-ink-900"
+                }`}
+              >
+                {p.label}
+              </button>
+            ))}
+          </div>
+          {cfPreset === "custom" && (
+            <div className="flex items-center gap-1.5 text-xs">
+              <input
+                type="date"
+                aria-label="Başlangıç tarihi"
+                value={customStart || dataStart}
+                min={dataStart}
+                max={customEnd || dataEnd}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="rounded-md border border-line bg-white px-2 py-1 text-ink-900"
+              />
+              <span className="text-muted">–</span>
+              <input
+                type="date"
+                aria-label="Bitiş tarihi"
+                value={customEnd || dataEnd}
+                min={customStart || dataStart}
+                max={dataEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="rounded-md border border-line bg-white px-2 py-1 text-ink-900"
+              />
+            </div>
+          )}
+        </div>
         <div className="h-64">
-          {cashFlow ? (
+          {!cashFlow ? (
+            <Skeleton className="h-full w-full" />
+          ) : filteredCashFlow && filteredCashFlow.length > 0 ? (
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={cashFlow} margin={{ left: 0, right: 0, top: 8, bottom: 0 }}>
+              <AreaChart data={filteredCashFlow} margin={{ left: 0, right: 0, top: 8, bottom: 0 }}>
                 <defs>
                   <linearGradient id="incomingFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="#4fbf97" stopOpacity={0.35} />
@@ -104,7 +178,11 @@ export function Overview() {
                 <XAxis
                   dataKey="date"
                   tickFormatter={(v) => formatDateTime(v).split(" ").slice(0, 2).join(" ")}
-                  ticks={[cashFlow[0].date, cashFlow[Math.floor(cashFlow.length / 2)].date, cashFlow.at(-1)!.date]}
+                  ticks={[
+                    filteredCashFlow[0].date,
+                    filteredCashFlow[Math.floor(filteredCashFlow.length / 2)].date,
+                    filteredCashFlow.at(-1)!.date,
+                  ]}
                   axisLine={false}
                   tickLine={false}
                   tick={{ fontSize: 12, fill: "#7a7568" }}
@@ -119,7 +197,9 @@ export function Overview() {
               </AreaChart>
             </ResponsiveContainer>
           ) : (
-            <Skeleton className="h-full w-full" />
+            <div className="flex h-full items-center justify-center text-sm text-muted">
+              Seçili aralıkta veri yok
+            </div>
           )}
         </div>
       </Card>

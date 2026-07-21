@@ -67,9 +67,13 @@ export function runSeed(): void {
     [KEYS.expectedOutgoing]: EXPECTED_OUTGOING,
   };
 
+  // Statik/türetilmiş koleksiyonlar (kullanıcı mutasyonu yok) her açılışta tazelenir,
+  // böylece veri şekli değişince (ör. 30→90 günlük nakit akışı) yeniden dağıtımda güncellenir.
+  const REFRESH_KEYS = new Set<string>([KEYS.cashflow30d, KEYS.cashflowForecast]);
+
   let seededCollections = 0;
   for (const [key, value] of Object.entries(seedMap)) {
-    if (!hasCollection(key)) {
+    if (!hasCollection(key) || REFRESH_KEYS.has(key)) {
       setCollection(key, value);
       seededCollections++;
     }

@@ -1106,10 +1106,12 @@ export const RECONCILIATION_EXCEPTIONS: ReconciliationException[] = [
   },
 ];
 
-export const CASH_FLOW_30D: CashFlowPoint[] = Array.from({ length: 30 }, (_, i) => {
+// 90 günlük geçmiş — Genel bakış grafiğindeki tarih aralığı filtresi buradan beslenir.
+// (İsim geriye dönük uyumluluk için CASH_FLOW_30D kaldı; endpoint /cashflow/30d.)
+export const CASH_FLOW_30D: CashFlowPoint[] = Array.from({ length: 90 }, (_, i) => {
   const base = 55_000 + Math.sin(i / 4) * 18_000 + rand() * 6_000;
   return {
-    date: daysAgoIso(29 - i),
+    date: daysAgoIso(89 - i),
     incoming: Math.round(base + 20_000),
     outgoing: Math.round(base * 0.78),
   };
