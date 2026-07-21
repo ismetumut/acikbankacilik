@@ -265,6 +265,36 @@ export interface CardCollection {
   net: number;
   reference: string;
   time: string;
+  refunded?: boolean;
+}
+
+/** Banka ile öde (A2A / "Pay by bank") tahsilat talebi — kart yerine hesaptan-hesaba, anında ve düşük komisyon. */
+export interface PayByBankRequest {
+  id: string;
+  customer: string;
+  amount: number;
+  invoiceRef?: string;
+  status: "pending" | "paid" | "expired" | "refunded";
+  createdAt: string;
+  paidAt?: string;
+  bankId?: BankId; // ödeme hangi bankadan geldi
+  fee: number; // A2A komisyonu (karttan çok düşük)
+  net: number;
+}
+
+/** Abonelik / tekrarlı tahsilat — VRP mandası veya kart ile düzenli otomatik tahsilat. */
+export interface Subscription {
+  id: string;
+  customer: string;
+  planLabel: string;
+  amount: number;
+  frequency: "weekly" | "monthly";
+  status: "active" | "paused" | "canceled";
+  method: "a2a" | "card";
+  mandateRef: string; // VRP/DD mandası referansı
+  nextCharge: string;
+  collectedCount: number;
+  createdAt: string;
 }
 
 export interface OverdueReceivable {

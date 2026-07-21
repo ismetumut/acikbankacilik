@@ -44,8 +44,18 @@ export function Collections() {
   const { data: links, refetch: refetchLinks } = useAsync(() => banking.getPaymentLinks(), []);
   const { data: overdue } = useAsync(() => banking.getOverdueReceivables(), []);
   const { data: cardCollections, refetch: refetchCards } = useAsync(() => banking.getRecentCardCollections(), []);
+  const { data: a2aRequests, refetch: refetchA2a } = useAsync(() => banking.getPayByBankRequests(), []);
+  const { data: subscriptions, refetch: refetchSubs } = useAsync(() => banking.getSubscriptions(), []);
 
-  const [tab, setTab] = useState<"moto" | "link">("moto");
+  const [tab, setTab] = useState<"moto" | "link" | "a2a">("moto");
+  const [busyId, setBusyId] = useState<string | null>(null);
+
+  async function act(id: string, fn: () => Promise<void>, ...refetches: (() => void)[]) {
+    setBusyId(id);
+    await fn();
+    setBusyId(null);
+    refetches.forEach((r) => r());
+  }
 
   const todayCollected = 98_280;
   const openLinksTotal = links?.filter((l) => l.status !== "Ödendi").reduce((s, l) => s + l.amount, 0) ?? 0;
@@ -75,17 +85,28 @@ export function Collections() {
               </button>
               <button
                 type="button"
+                onClick={() => setTab("a2a")}
+                className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold transition-colors ${
+                  tab === "a2a" ? "bg-white text-ink-900 shadow-sm" : "text-ink-900/50"
+                }`}
+              >
+                Banka ile öde
+              </button>
+              <button
+                type="button"
                 onClick={() => setTab("link")}
                 className={`flex-1 rounded-lg px-3 py-2 text-sm font-bold transition-colors ${
                   tab === "link" ? "bg-white text-ink-900 shadow-sm" : "text-ink-900/50"
                 }`}
               >
-                Link / QR oluştur
+                Link / QR
               </button>
             </div>
 
             {tab === "moto" ? (
               <MotoPanel onCollected={refetchCards} />
+            ) : tab === "a2a" ? (
+              <PayByBankPanel onCreated={refetchA2a} />
             ) : (
               <LinkPanel onCreated={refetchLinks} />
             )}
@@ -128,12 +149,147 @@ export function Collections() {
                         {c.bank} · {c.installment > 1 ? `${c.installment} taksit` : "tek çekim"} · {c.time}
                       </p>
                     </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-sm font-bold tabular text-brand-500">
-                        +{formatCurrency(c.amount, { withDecimals: false })}
-                      </p>
-                      <p className="text-[11px] text-muted">net {formatCurrency(c.net, { withDecimals: false })}</p>
+                    <div className="flex shrink-0 items-center gap-3">
+                      <div className="text-right">
+                        <p className={`text-sm font-bold tabular ${c.refunded ? "text-muted line-through" : "text-brand-500"}`}>
+                          +{formatCurrency(c.amount, { withDecimals: false })}
+                        </p>
+                        <p className="text-[11px] text-muted">net {formatCurrency(c.net, { withDecimals: false })}</p>
+                      </div>
+                      {c.refunded ? (
+                        <Badge tone="neutral">İade edildi</Badge>
+                      ) : (
+                        <button
+                          type="button"
+                          disabled={busyId === c.id}
+                          onClick={() => act(c.id, () => banking.refundCardCollection(c.id), refetchCards)}
+                          className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold text-ink-900 hover:bg-cream-100 disabled:opacity-50"
+                        >
+                          İade
+                        </button>
+                      )}
                     </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Banka ile öde talepleri (A2A)</CardTitle>
+              <span className="text-xs text-muted">komisyon ~%0,3 · anında</span>
+            </CardHeader>
+            {!a2aRequests ? (
+              <LoadingRows rows={3} />
+            ) : a2aRequests.length === 0 ? (
+              <p className="py-4 text-center text-sm text-muted">Henüz talep yok.</p>
+            ) : (
+              <div className="divide-y divide-line">
+                {a2aRequests.slice(0, 5).map((r) => (
+                  <div key={r.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-ink-900">{r.customer}</p>
+                      <p className="truncate text-xs text-muted">
+                        {r.invoiceRef ? `${r.invoiceRef} · ` : ""}komisyon {formatCurrency(r.fee, { withDecimals: false })} · net{" "}
+                        {formatCurrency(r.net, { withDecimals: false })}
+                      </p>
+                    </div>
+                    <div className="flex shrink-0 items-center gap-2">
+                      <span className="text-sm font-bold tabular text-ink-900">
+                        {formatCurrency(r.amount, { withDecimals: false })}
+                      </span>
+                      {r.status === "pending" ? (
+                        <button
+                          type="button"
+                          disabled={busyId === r.id}
+                          onClick={() => act(r.id, () => banking.markPayByBankPaid(r.id), refetchA2a)}
+                          className="rounded-lg bg-brand-600 px-2 py-1 text-[11px] font-semibold text-white hover:bg-ink-900 disabled:opacity-50"
+                        >
+                          Ödendi işaretle
+                        </button>
+                      ) : r.status === "paid" ? (
+                        <>
+                          <Badge tone="positive">Ödendi</Badge>
+                          <button
+                            type="button"
+                            disabled={busyId === r.id}
+                            onClick={() => act(r.id, () => banking.refundPayByBank(r.id), refetchA2a)}
+                            className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold text-ink-900 hover:bg-cream-100 disabled:opacity-50"
+                          >
+                            İade
+                          </button>
+                        </>
+                      ) : (
+                        <Badge tone={r.status === "refunded" ? "neutral" : "warning"}>
+                          {r.status === "refunded" ? "İade edildi" : "Süresi doldu"}
+                        </Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Abonelikler (tekrarlı tahsilat)</CardTitle>
+              <span className="text-xs text-muted">VRP mandası</span>
+            </CardHeader>
+            {!subscriptions ? (
+              <LoadingRows rows={3} />
+            ) : (
+              <div className="divide-y divide-line">
+                {subscriptions.map((s) => (
+                  <div key={s.id} className="py-3">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-ink-900">{s.customer}</p>
+                        <p className="truncate text-xs text-muted">
+                          {s.planLabel} · {s.frequency === "monthly" ? "aylık" : "haftalık"} · {s.collectedCount} tahsilat ·{" "}
+                          {s.mandateRef}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-2">
+                        <span className="text-sm font-bold tabular text-ink-900">
+                          {formatCurrency(s.amount, { withDecimals: false })}
+                        </span>
+                        <Badge tone={s.status === "active" ? "positive" : s.status === "paused" ? "warning" : "neutral"}>
+                          {s.status === "active" ? "Aktif" : s.status === "paused" ? "Duraklatıldı" : "İptal"}
+                        </Badge>
+                      </div>
+                    </div>
+                    {s.status !== "canceled" && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          disabled={busyId === s.id}
+                          onClick={() => act(s.id, () => banking.chargeSubscriptionNow(s.id), refetchSubs, refetchA2a)}
+                          className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold text-ink-900 hover:bg-cream-100 disabled:opacity-50"
+                        >
+                          Şimdi tahsil et
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyId === s.id}
+                          onClick={() =>
+                            act(s.id, () => banking.setSubscriptionStatus(s.id, s.status === "active" ? "paused" : "active"), refetchSubs)
+                          }
+                          className="rounded-lg border border-line px-2 py-1 text-[11px] font-semibold text-ink-900 hover:bg-cream-100 disabled:opacity-50"
+                        >
+                          {s.status === "active" ? "Duraklat" : "Sürdür"}
+                        </button>
+                        <button
+                          type="button"
+                          disabled={busyId === s.id}
+                          onClick={() => act(s.id, () => banking.setSubscriptionStatus(s.id, "canceled"), refetchSubs)}
+                          className="rounded-lg px-2 py-1 text-[11px] font-semibold text-negative-700 hover:bg-negative-100 disabled:opacity-50"
+                        >
+                          İptal
+                        </button>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>
@@ -625,5 +781,84 @@ function LinkPanel({ onCreated }: { onCreated: () => void }) {
         )}
       </form>
     </>
+  );
+}
+
+function PayByBankPanel({ onCreated }: { onCreated: () => void }) {
+  const banking = useBanking();
+  const [customer, setCustomer] = useState("");
+  const [amount, setAmount] = useState("");
+  const [invoiceRef, setInvoiceRef] = useState("");
+  const [saving, setSaving] = useState(false);
+  const [created, setCreated] = useState<{ url: string; net: number; fee: number } | null>(null);
+
+  const amt = parseAmount(amount);
+  const a2aFee = Math.round(amt * 0.003);
+  const cardFee = Math.round(amt * 0.0189);
+  const savings = cardFee - a2aFee;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!customer || amt <= 0) return;
+    setSaving(true);
+    const req = await banking.createPayByBankRequest({ customer, amount: amt, invoiceRef: invoiceRef || undefined });
+    setSaving(false);
+    setCreated({ url: `akort.pay/bank/${req.id.slice(-6)}`, net: req.net, fee: req.fee });
+    setCustomer("");
+    setAmount("");
+    setInvoiceRef("");
+    onCreated();
+  }
+
+  return (
+    <form onSubmit={submit} className="space-y-4">
+      <p className="rounded-xl bg-brand-50 p-3 text-xs text-ink-900/80">
+        <span className="font-bold">Banka ile öde (A2A):</span> Müşteri kart yerine kendi banka uygulamasından öder.
+        Anında hesabınıza geçer, komisyon kartın ~1/6'sı kadar.
+      </p>
+      <label className="block text-xs font-semibold text-ink-900">
+        Müşteri
+        <input className="input mt-1" value={customer} onChange={(e) => setCustomer(e.target.value)} placeholder="Müşteri adı" />
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className="block text-xs font-semibold text-ink-900">
+          Tutar
+          <input className="input mt-1" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0" />
+        </label>
+        <label className="block text-xs font-semibold text-ink-900">
+          Fatura no (ops.)
+          <input className="input mt-1" value={invoiceRef} onChange={(e) => setInvoiceRef(e.target.value)} placeholder="FTR-.." />
+        </label>
+      </div>
+
+      {amt > 0 && (
+        <div className="rounded-xl border border-line p-3 text-xs">
+          <div className="flex justify-between py-0.5">
+            <span className="text-muted">Kartla komisyon (~%1,89)</span>
+            <span className="font-semibold text-negative-700 line-through">−{formatCurrency(cardFee, { withDecimals: false })}</span>
+          </div>
+          <div className="flex justify-between py-0.5">
+            <span className="text-muted">Banka ile öde (~%0,3)</span>
+            <span className="font-bold text-ink-900">−{formatCurrency(a2aFee, { withDecimals: false })}</span>
+          </div>
+          <div className="mt-1 flex justify-between border-t border-line pt-1.5">
+            <span className="font-semibold text-brand-500">Bu tahsilatta tasarruf</span>
+            <span className="font-bold text-brand-500">{formatCurrency(savings, { withDecimals: false })}</span>
+          </div>
+        </div>
+      )}
+
+      {created && (
+        <div className="rounded-xl bg-cream-100 p-3 text-xs text-ink-900/80">
+          <p className="font-bold">Ödeme bağlantısı oluşturuldu ✓</p>
+          <p className="mt-1 font-mono text-brand-500">{created.url}</p>
+          <p className="mt-1">Ödendiğinde net {formatCurrency(created.net, { withDecimals: false })} hesabınıza geçer.</p>
+        </div>
+      )}
+
+      <Button type="submit" variant="primary" className="w-full" disabled={saving || !customer || amt <= 0}>
+        {saving ? "Oluşturuluyor…" : "Banka ile öde bağlantısı oluştur"}
+      </Button>
+    </form>
   );
 }

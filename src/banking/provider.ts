@@ -13,6 +13,8 @@ import type {
   ErpInvoice,
   ErpMapping,
   ExpectedCashItem,
+  PayByBankRequest,
+  Subscription,
   NotificationSetting,
   OverdueReceivable,
   PaymentLink,
@@ -90,6 +92,21 @@ export interface NewRecurringInput {
   sweepKeepBalance?: number;
 }
 
+export interface NewPayByBankInput {
+  customer: string;
+  amount: number;
+  invoiceRef?: string;
+}
+
+export interface NewSubscriptionInput {
+  customer: string;
+  planLabel: string;
+  amount: number;
+  frequency: "weekly" | "monthly";
+  method: "a2a" | "card";
+  firstCharge: string; // ISO
+}
+
 export interface NewPaymentLinkInput {
   customer: string;
   /** amountOpen true ise tutar müşteriye bırakılır ve bu değer 0'dır. */
@@ -162,6 +179,21 @@ export interface BankingProvider {
   /** Sanal POS / mail-order: kartı çekip tahsilatı gerçekleştirir. */
   takeCardPayment(input: CardPaymentInput): Promise<CardPaymentResult>;
   getRecentCardCollections(): Promise<CardCollection[]>;
+  /** Kart tahsilatını iade et. */
+  refundCardCollection(id: string): Promise<void>;
+
+  // Banka ile öde (A2A / "Pay by bank") tahsilat
+  getPayByBankRequests(): Promise<PayByBankRequest[]>;
+  createPayByBankRequest(input: NewPayByBankInput): Promise<PayByBankRequest>;
+  /** Demo: müşteri ödemesini simüle eder (anında settle). */
+  markPayByBankPaid(id: string): Promise<void>;
+  refundPayByBank(id: string): Promise<void>;
+
+  // Abonelik / tekrarlı tahsilat (VRP mandası)
+  getSubscriptions(): Promise<Subscription[]>;
+  createSubscription(input: NewSubscriptionInput): Promise<Subscription>;
+  chargeSubscriptionNow(id: string): Promise<void>;
+  setSubscriptionStatus(id: string, status: "active" | "paused" | "canceled"): Promise<void>;
 
   getReconciliationExceptions(): Promise<ReconciliationException[]>;
   matchReconciliation(exceptionId: string, candidateId: string): Promise<void>;

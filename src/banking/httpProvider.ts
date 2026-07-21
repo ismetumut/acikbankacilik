@@ -17,18 +17,22 @@ import type {
   PaymentLink,
   PendingApproval,
   ReconciliationException,
+  PayByBankRequest,
   RecentPayment,
   RecurringPayment,
   ReportPackage,
+  Subscription,
 } from "@/lib/types";
 import { api } from "@/lib/api";
 import type {
   BankingProvider,
   CardPaymentInput,
   CardPaymentResult,
+  NewPayByBankInput,
   NewPaymentInput,
   NewPaymentLinkInput,
   NewRecurringInput,
+  NewSubscriptionInput,
   PaymentBatchInput,
   TransactionPage,
   TransactionQuery,
@@ -113,6 +117,35 @@ export class HttpBankingProvider implements BankingProvider {
   }
   getRecentCardCollections(): Promise<CardCollection[]> {
     return api<CardCollection[]>("/card-collections");
+  }
+  async refundCardCollection(id: string): Promise<void> {
+    await api(`/card-collections/${id}/refund`, { method: "POST" });
+  }
+
+  getPayByBankRequests(): Promise<PayByBankRequest[]> {
+    return api<PayByBankRequest[]>("/pay-by-bank");
+  }
+  createPayByBankRequest(input: NewPayByBankInput): Promise<PayByBankRequest> {
+    return api<PayByBankRequest>("/pay-by-bank", { method: "POST", body: input });
+  }
+  async markPayByBankPaid(id: string): Promise<void> {
+    await api(`/pay-by-bank/${id}/pay`, { method: "POST" });
+  }
+  async refundPayByBank(id: string): Promise<void> {
+    await api(`/pay-by-bank/${id}/refund`, { method: "POST" });
+  }
+
+  getSubscriptions(): Promise<Subscription[]> {
+    return api<Subscription[]>("/subscriptions");
+  }
+  createSubscription(input: NewSubscriptionInput): Promise<Subscription> {
+    return api<Subscription>("/subscriptions", { method: "POST", body: input });
+  }
+  async chargeSubscriptionNow(id: string): Promise<void> {
+    await api(`/subscriptions/${id}/charge`, { method: "POST" });
+  }
+  async setSubscriptionStatus(id: string, status: "active" | "paused" | "canceled"): Promise<void> {
+    await api(`/subscriptions/${id}/status`, { method: "POST", body: { status } });
   }
 
   getReconciliationExceptions(): Promise<ReconciliationException[]> {

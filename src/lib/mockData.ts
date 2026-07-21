@@ -16,9 +16,11 @@ import type {
   ExpectedCashItem,
   NotificationSetting,
   OverdueReceivable,
+  PayByBankRequest,
   PaymentLink,
   PendingApproval,
   ReconciliationException,
+  Subscription,
   RecentPayment,
   RecurringPayment,
   ReportPackage,
@@ -927,6 +929,20 @@ export const ERP_INVOICES: ErpInvoice[] = [
   { id: "inv-1195", docNo: "FTR-2026-1195", cariId: "cari-1", direction: "borc", amount: 64_300, issueDate: daysAgoIso(9), dueDate: daysAgoIso(-6), status: "open" },
   { id: "inv-1189", docNo: "FTR-2026-1189", cariId: "cari-6", direction: "borc", amount: 3_480, issueDate: daysAgoIso(12), dueDate: daysAgoIso(-3), status: "open" },
   { id: "inv-1211", docNo: "FTR-2026-1211", cariId: "cari-4", direction: "borc", amount: 48_200, issueDate: daysAgoIso(2), dueDate: daysAgoIso(-28), status: "open" },
+];
+
+/** Banka ile öde (A2A) tahsilat talepleri — kart yerine hesaptan-hesaba, düşük komisyon. */
+export const PAY_BY_BANK_REQUESTS: PayByBankRequest[] = [
+  { id: "a2a-1", customer: "Ege Market Zinciri", amount: 18_750, invoiceRef: "FTR-2026-1208", status: "paid", createdAt: daysAgoIso(1, 10), paidAt: daysAgoIso(1, 10, 3), bankId: "garanti", fee: 56, net: 18_694 },
+  { id: "a2a-2", customer: "Karadeniz Gıda Toptan", amount: 42_000, invoiceRef: "FTR-2026-1201", status: "pending", createdAt: daysAgoIso(0, 9), fee: 126, net: 41_874 },
+  { id: "a2a-3", customer: "Beyaz Ofis Kırtasiye", amount: 6_300, status: "paid", createdAt: daysAgoIso(2, 14), paidAt: daysAgoIso(2, 14, 1), bankId: "isbankasi", fee: 19, net: 6_281 },
+];
+
+/** Abonelik / tekrarlı tahsilatlar — VRP mandasıyla otomatik. */
+export const SUBSCRIPTIONS: Subscription[] = [
+  { id: "sub-1", customer: "Delta Elektrik", planLabel: "Aylık bakım paketi", amount: 4_500, frequency: "monthly", status: "active", method: "a2a", mandateRef: "VRP-DLT-0091", nextCharge: daysAgoIso(-6, 9), collectedCount: 8, createdAt: daysAgoIso(240) },
+  { id: "sub-2", customer: "Mert Nakliyat", planLabel: "Haftalık lojistik hizmeti", amount: 2_800, frequency: "weekly", status: "active", method: "a2a", mandateRef: "VRP-MRT-0148", nextCharge: daysAgoIso(-2, 9), collectedCount: 22, createdAt: daysAgoIso(160) },
+  { id: "sub-3", customer: "Anadolu Ambalaj", planLabel: "Premium destek", amount: 1_200, frequency: "monthly", status: "paused", method: "card", mandateRef: "DD-ANA-0203", nextCharge: daysAgoIso(-12, 9), collectedCount: 5, createdAt: daysAgoIso(150) },
 ];
 
 /** Otomatik ödeme talimatları — planlı, tekrarlı, VRP ve sweep örnekleri. */

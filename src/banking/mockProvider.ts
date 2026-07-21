@@ -16,9 +16,11 @@ import type {
   PaymentLink,
   PendingApproval,
   ReconciliationException,
+  PayByBankRequest,
   RecentPayment,
   RecurringPayment,
   ReportPackage,
+  Subscription,
 } from "@/lib/types";
 import {
   ACCOUNTS,
@@ -41,6 +43,8 @@ import {
   RECENT_PAYMENTS,
   RECONCILIATION_EXCEPTIONS,
   RECURRING_PAYMENTS,
+  PAY_BY_BANK_REQUESTS,
+  SUBSCRIPTIONS,
   ERP_CARI_LIST,
   ERP_INVOICES,
   REPORT_PACKAGES,
@@ -52,9 +56,11 @@ import type {
   BankingProvider,
   CardPaymentInput,
   CardPaymentResult,
+  NewPayByBankInput,
   NewPaymentInput,
   NewPaymentLinkInput,
   NewRecurringInput,
+  NewSubscriptionInput,
   PaymentBatchInput,
   TransactionPage,
   TransactionQuery,
@@ -78,6 +84,8 @@ const overdueReceivables = [...OVERDUE_RECEIVABLES];
 let reconciliationExceptions = [...RECONCILIATION_EXCEPTIONS];
 let erpMappings: ErpMapping[] = [];
 let recurringPayments = [...RECURRING_PAYMENTS];
+let payByBankRequests = [...PAY_BY_BANK_REQUESTS];
+let subscriptions = [...SUBSCRIPTIONS];
 let reportPackages = [...REPORT_PACKAGES];
 let notificationSettings = [...NOTIFICATION_SETTINGS];
 let assistantHistory = [...ASSISTANT_HISTORY];
@@ -379,6 +387,93 @@ export class MockBankingProvider implements BankingProvider {
 
   async getRecentCardCollections(): Promise<CardCollection[]> {
     return delay(cardCollections);
+  }
+
+  async refundCardCollection(id: string): Promise<void> {
+    cardCollections = cardCollections.map((c) => (c.id === id ? { ...c, refunded: true } : c));
+    await delay(undefined, 300);
+  }
+
+  async getPayByBankRequests(): Promise<PayByBankRequest[]> {
+    return delay([...payByBankRequests]);
+  }
+  async createPayByBankRequest(input: NewPayByBankInput): Promise<PayByBankRequest> {
+    const fee = Math.round(input.amount * 0.003);
+    const req: PayByBankRequest = {
+      id: `a2a-${Date.now()}`,
+      customer: input.customer,
+      amount: input.amount,
+      invoiceRef: input.invoiceRef,
+      status: "pending",
+      createdAt: new Date().toISOString(),
+      fee,
+      net: input.amount - fee,
+    };
+    payByBankRequests = [req, ...payByBankRequests];
+    await delay(undefined, 400);
+    return req;
+  }
+  async markPayByBankPaid(id: string): Promise<void> {
+    const now = new Date().toISOString();
+    payByBankRequests = payByBankRequests.map((r) =>
+      r.id === id ? { ...r, status: "paid" as const, paidAt: now, bankId: "garanti" as const } : r,
+    );
+    await delay(undefined, 300);
+  }
+  async refundPayByBank(id: string): Promise<void> {
+    payByBankRequests = payByBankRequests.map((r) => (r.id === id ? { ...r, status: "refunded" as const } : r));
+    await delay(undefined, 300);
+  }
+
+  async getSubscriptions(): Promise<Subscription[]> {
+    return delay([...subscriptions]);
+  }
+  async createSubscription(input: NewSubscriptionInput): Promise<Subscription> {
+    const sub: Subscription = {
+      id: `sub-${Date.now()}`,
+      customer: input.customer,
+      planLabel: input.planLabel,
+      amount: input.amount,
+      frequency: input.frequency,
+      status: "active",
+      method: input.method,
+      mandateRef: `VRP-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+      nextCharge: input.firstCharge,
+      collectedCount: 0,
+      createdAt: new Date().toISOString(),
+    };
+    subscriptions = [sub, ...subscriptions];
+    await delay(undefined, 400);
+    return sub;
+  }
+  async chargeSubscriptionNow(id: string): Promise<void> {
+    const sub = subscriptions.find((s) => s.id === id);
+    if (!sub) return;
+    const now = new Date().toISOString();
+    const fee = Math.round(sub.amount * 0.003);
+    payByBankRequests = [
+      {
+        id: `a2a-${Date.now()}`,
+        customer: sub.customer,
+        amount: sub.amount,
+        invoiceRef: sub.mandateRef,
+        status: "paid",
+        createdAt: now,
+        paidAt: now,
+        bankId: "isbankasi",
+        fee,
+        net: sub.amount - fee,
+      },
+      ...payByBankRequests,
+    ];
+    subscriptions = subscriptions.map((s) =>
+      s.id === id ? { ...s, collectedCount: s.collectedCount + 1, nextCharge: nextRunDate(s.nextCharge, s.frequency) } : s,
+    );
+    await delay(undefined, 400);
+  }
+  async setSubscriptionStatus(id: string, status: "active" | "paused" | "canceled"): Promise<void> {
+    subscriptions = subscriptions.map((s) => (s.id === id ? { ...s, status } : s));
+    await delay(undefined, 200);
   }
 
   async getOverdueReceivables(): Promise<OverdueReceivable[]> {

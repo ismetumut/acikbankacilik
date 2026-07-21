@@ -7,6 +7,8 @@ import {
   ERP_CARI_LIST,
   ERP_INVOICES,
   RECURRING_PAYMENTS,
+  PAY_BY_BANK_REQUESTS,
+  SUBSCRIPTIONS,
   CONSENTS,
   EXPECTED_INCOMING,
   EXPECTED_OUTGOING,
@@ -46,6 +48,8 @@ export const KEYS = {
   erpInvoices: "erpInvoices",
   erpMappings: "erpMappings",
   recurring: "recurring",
+  payByBank: "payByBank",
+  subscriptions: "subscriptions",
 } as const;
 
 /**
@@ -76,6 +80,8 @@ export function runSeed(): void {
     [KEYS.erpInvoices]: ERP_INVOICES,
     [KEYS.erpMappings]: [],
     [KEYS.recurring]: RECURRING_PAYMENTS,
+    [KEYS.payByBank]: PAY_BY_BANK_REQUESTS,
+    [KEYS.subscriptions]: SUBSCRIPTIONS,
   };
 
   // Statik/türetilmiş koleksiyonlar (kullanıcı mutasyonu yok) her açılışta tazelenir,

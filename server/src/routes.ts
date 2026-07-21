@@ -7,12 +7,14 @@ import type {
   ErpCari,
   ErpMapping,
   NotificationSetting,
+  PayByBankRequest,
   PaymentLink,
   PendingApproval,
   ReconciliationException,
   RecentPayment,
   RecurringPayment,
   ReportPackage,
+  Subscription,
   Transaction,
 } from "../../src/lib/types";
 import {
@@ -332,6 +334,107 @@ apiRouter.post("/recurring/:id/run", (req, res) => {
   res.json({ ok: true });
 });
 
+/* ------------------------------------------------------- pay by bank (A2A) */
+
+apiRouter.get("/pay-by-bank", (_req, res) => res.json(getCollection<PayByBankRequest>(KEYS.payByBank)));
+
+apiRouter.post("/pay-by-bank", (req, res) => {
+  const { customer, amount, invoiceRef } = (req.body ?? {}) as { customer?: string; amount?: number; invoiceRef?: string };
+  const amt = Number(amount) || 0;
+  const fee = Math.round(amt * 0.003);
+  const created: PayByBankRequest = {
+    id: `a2a-${Date.now()}`,
+    customer: customer ?? "",
+    amount: amt,
+    invoiceRef,
+    status: "pending",
+    createdAt: new Date().toISOString(),
+    fee,
+    net: amt - fee,
+  };
+  setCollection(KEYS.payByBank, [created, ...getCollection<PayByBankRequest>(KEYS.payByBank)]);
+  res.json(created);
+});
+
+apiRouter.post("/pay-by-bank/:id/pay", (req, res) => {
+  const now = new Date().toISOString();
+  const list = getCollection<PayByBankRequest>(KEYS.payByBank).map((r) =>
+    r.id === req.params.id ? { ...r, status: "paid" as const, paidAt: now, bankId: "garanti" as const } : r,
+  );
+  setCollection(KEYS.payByBank, list);
+  res.json({ ok: true });
+});
+
+apiRouter.post("/pay-by-bank/:id/refund", (req, res) => {
+  const list = getCollection<PayByBankRequest>(KEYS.payByBank).map((r) =>
+    r.id === req.params.id ? { ...r, status: "refunded" as const } : r,
+  );
+  setCollection(KEYS.payByBank, list);
+  res.json({ ok: true });
+});
+
+/* ---------------------------------------------------------- subscriptions -- */
+
+apiRouter.get("/subscriptions", (_req, res) => res.json(getCollection<Subscription>(KEYS.subscriptions)));
+
+apiRouter.post("/subscriptions", (req, res) => {
+  const input = req.body ?? {};
+  const created: Subscription = {
+    id: `sub-${Date.now()}`,
+    customer: input.customer,
+    planLabel: input.planLabel,
+    amount: Number(input.amount) || 0,
+    frequency: input.frequency,
+    status: "active",
+    method: input.method,
+    mandateRef: `VRP-${Math.random().toString(36).slice(2, 7).toUpperCase()}`,
+    nextCharge: input.firstCharge,
+    collectedCount: 0,
+    createdAt: new Date().toISOString(),
+  };
+  setCollection(KEYS.subscriptions, [created, ...getCollection<Subscription>(KEYS.subscriptions)]);
+  res.json(created);
+});
+
+apiRouter.post("/subscriptions/:id/charge", (req, res) => {
+  const subs = getCollection<Subscription>(KEYS.subscriptions);
+  const sub = subs.find((s) => s.id === req.params.id);
+  if (!sub) return res.json({ ok: true });
+  const now = new Date().toISOString();
+  const fee = Math.round(sub.amount * 0.003);
+  setCollection(KEYS.payByBank, [
+    {
+      id: `a2a-${Date.now()}`,
+      customer: sub.customer,
+      amount: sub.amount,
+      invoiceRef: sub.mandateRef,
+      status: "paid",
+      createdAt: now,
+      paidAt: now,
+      bankId: "isbankasi",
+      fee,
+      net: sub.amount - fee,
+    },
+    ...getCollection<PayByBankRequest>(KEYS.payByBank),
+  ]);
+  setCollection(
+    KEYS.subscriptions,
+    subs.map((s) =>
+      s.id === sub.id ? { ...s, collectedCount: s.collectedCount + 1, nextCharge: nextRunDate(s.nextCharge, s.frequency) } : s,
+    ),
+  );
+  res.json({ ok: true });
+});
+
+apiRouter.post("/subscriptions/:id/status", (req, res) => {
+  const { status } = (req.body ?? {}) as { status?: string };
+  const list = getCollection<Subscription>(KEYS.subscriptions).map((s) =>
+    s.id === req.params.id ? { ...s, status: status as Subscription["status"] } : s,
+  );
+  setCollection(KEYS.subscriptions, list);
+  res.json({ ok: true });
+});
+
 /* -------------------------------------------------------- payment links --- */
 
 apiRouter.get("/payment-links", (_req, res) => res.json(getCollection<PaymentLink>(KEYS.links)));
@@ -395,6 +498,14 @@ apiRouter.post("/card-payment", (req, res) => {
 });
 
 apiRouter.get("/card-collections", (_req, res) => res.json(getCollection<CardCollection>(KEYS.cardCollections)));
+
+apiRouter.post("/card-collections/:id/refund", (req, res) => {
+  const list = getCollection<CardCollection>(KEYS.cardCollections).map((c) =>
+    c.id === req.params.id ? { ...c, refunded: true } : c,
+  );
+  setCollection(KEYS.cardCollections, list);
+  res.json({ ok: true });
+});
 
 /* ------------------------------------------------------ reconciliation ---- */
 
