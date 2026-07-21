@@ -2,7 +2,10 @@ import type {
   Account,
   AssistantExchange,
   BankId,
+  Beneficiary,
   CardCollection,
+  DirectDebitMandate,
+  IncomeInsight,
   CashFlowForecastPoint,
   CashFlowPoint,
   ClientSummary,
@@ -45,6 +48,8 @@ import {
   RECURRING_PAYMENTS,
   PAY_BY_BANK_REQUESTS,
   SUBSCRIPTIONS,
+  BENEFICIARIES,
+  DIRECT_DEBIT_MANDATES,
   ERP_CARI_LIST,
   ERP_INVOICES,
   REPORT_PACKAGES,
@@ -67,6 +72,7 @@ import type {
 } from "./provider";
 import { confirmPayee, simulateStatus, toLegacyStatus } from "@/lib/pis";
 import { nextRunDate } from "@/lib/recurring";
+import { computeIncomeInsights } from "@/lib/insights";
 
 /** Simulates realistic network latency for a mock/demo backend. */
 function delay<T>(value: T, ms = 220): Promise<T> {
@@ -94,6 +100,16 @@ export class MockBankingProvider implements BankingProvider {
   async getAccounts(companyId?: string): Promise<Account[]> {
     if (!companyId || companyId === ALL_COMPANIES) return delay(accounts);
     return delay(accounts.filter((a) => a.companyId === companyId));
+  }
+
+  async getBeneficiaries(): Promise<Beneficiary[]> {
+    return delay([...BENEFICIARIES]);
+  }
+  async getDirectDebitMandates(): Promise<DirectDebitMandate[]> {
+    return delay([...DIRECT_DEBIT_MANDATES]);
+  }
+  async getIncomeInsights(): Promise<IncomeInsight> {
+    return delay(computeIncomeInsights(transactions, CASH_FLOW_30D));
   }
 
   async getTransactions(query: TransactionQuery): Promise<TransactionPage> {

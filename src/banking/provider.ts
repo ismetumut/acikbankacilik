@@ -3,6 +3,9 @@ import type {
   ApprovalRole,
   AssistantExchange,
   BankId,
+  Beneficiary,
+  DirectDebitMandate,
+  IncomeInsight,
   CardCollection,
   CashFlowForecastPoint,
   CashFlowPoint,
@@ -151,6 +154,11 @@ export interface CardPaymentResult {
 export interface BankingProvider {
   getAccounts(companyId?: string): Promise<Account[]>;
   getTransactions(query: TransactionQuery): Promise<TransactionPage>;
+
+  // AIS derinliği: lehdarlar, DD mandaları, gelir/harcanabilirlik içgörüsü
+  getBeneficiaries(): Promise<Beneficiary[]>;
+  getDirectDebitMandates(): Promise<DirectDebitMandate[]>;
+  getIncomeInsights(companyId?: string): Promise<IncomeInsight>;
 
   getConsents(): Promise<ConsentGrant[]>;
   renewConsent(bankId: BankId): Promise<void>;

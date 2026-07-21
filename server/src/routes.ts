@@ -3,6 +3,7 @@ import type {
   Account,
   AssistantExchange,
   CardCollection,
+  CashFlowPoint,
   ConsentGrant,
   ErpCari,
   ErpMapping,
@@ -26,6 +27,7 @@ import {
 } from "../../src/lib/mockData";
 import { confirmPayee, simulateStatus, toLegacyStatus } from "../../src/lib/pis";
 import { nextRunDate } from "../../src/lib/recurring";
+import { computeIncomeInsights } from "../../src/lib/insights";
 import { getCollection, setCollection, findUserByEmail } from "./db";
 import { KEYS } from "./seed";
 import { requireAuth, signToken, verifyPassword, type AuthedRequest } from "./auth";
@@ -518,6 +520,19 @@ apiRouter.post("/reconciliation/:id/match", (req, res) => {
   setCollection(KEYS.reconciliation, remaining);
   res.json({ ok: true });
 });
+
+/* ----------------------------------------------------------------- ais ---- */
+
+apiRouter.get("/beneficiaries", (_req, res) => res.json(getCollection(KEYS.beneficiaries)));
+apiRouter.get("/direct-debits", (_req, res) => res.json(getCollection(KEYS.directDebits)));
+apiRouter.get("/insights/income", (_req, res) =>
+  res.json(
+    computeIncomeInsights(
+      getCollection<Transaction>(KEYS.transactions),
+      getCollection<CashFlowPoint>(KEYS.cashflow30d),
+    ),
+  ),
+);
 
 /* ----------------------------------------------------------------- erp ---- */
 

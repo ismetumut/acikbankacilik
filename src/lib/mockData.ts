@@ -11,6 +11,8 @@ import type {
   Company,
   ConsentGrant,
   Currency,
+  Beneficiary,
+  DirectDebitMandate,
   ErpCari,
   ErpInvoice,
   ExpectedCashItem,
@@ -943,6 +945,22 @@ export const SUBSCRIPTIONS: Subscription[] = [
   { id: "sub-1", customer: "Delta Elektrik", planLabel: "Aylık bakım paketi", amount: 4_500, frequency: "monthly", status: "active", method: "a2a", mandateRef: "VRP-DLT-0091", nextCharge: daysAgoIso(-6, 9), collectedCount: 8, createdAt: daysAgoIso(240) },
   { id: "sub-2", customer: "Mert Nakliyat", planLabel: "Haftalık lojistik hizmeti", amount: 2_800, frequency: "weekly", status: "active", method: "a2a", mandateRef: "VRP-MRT-0148", nextCharge: daysAgoIso(-2, 9), collectedCount: 22, createdAt: daysAgoIso(160) },
   { id: "sub-3", customer: "Anadolu Ambalaj", planLabel: "Premium destek", amount: 1_200, frequency: "monthly", status: "paused", method: "card", mandateRef: "DD-ANA-0203", nextCharge: daysAgoIso(-12, 9), collectedCount: 5, createdAt: daysAgoIso(150) },
+];
+
+/** Bankada kayıtlı lehdarlar (saved payees) — AIS ile okunur. */
+export const BENEFICIARIES: Beneficiary[] = [
+  { id: "ben-1", name: "Aksa Yapı Malz. San. Tic. Ltd.", iban: "TR95 0001 0002 3456 7788 0122 08", bankId: "ziraat", lastUsed: daysAgoIso(2), trusted: true },
+  { id: "ben-2", name: "Mert Nakliyat", iban: "TR29 0006 4000 0011 7723 6788 05", bankId: "isbankasi", lastUsed: daysAgoIso(3), trusted: true },
+  { id: "ben-3", name: "Gelir İdaresi Başkanlığı", iban: "TR33 0001 0000 0000 0000 0000 01", bankId: "ziraat", lastUsed: daysAgoIso(26), trusted: true },
+  { id: "ben-4", name: "Delta Elektrik", iban: "TR64 0006 7010 0000 1122 4155 03", bankId: "yapikredi", lastUsed: daysAgoIso(5) },
+  { id: "ben-5", name: "Meridyen Lojistik", iban: "TR77 0006 2000 1234 3345 2988 04", bankId: "garanti", lastUsed: daysAgoIso(12) },
+];
+
+/** Hesaptan çekilen otomatik ödeme talimatları (DD mandaları) — AIS okuması. */
+export const DIRECT_DEBIT_MANDATES: DirectDebitMandate[] = [
+  { id: "dd-1", creditor: "Enerjisa Elektrik", reference: "ENJ-99120", accountId: "acc-ziraat-vadesiz", bankId: "ziraat", maxAmount: 18_000, frequency: "monthly", nextCollection: daysAgoIso(-5, 9), status: "active" },
+  { id: "dd-2", creditor: "Türk Telekom", reference: "TT-44581", accountId: "acc-is-vadesiz", bankId: "isbankasi", maxAmount: 4_500, frequency: "monthly", nextCollection: daysAgoIso(-8, 9), status: "active" },
+  { id: "dd-3", creditor: "Anadolu Sigorta", reference: "AS-71230", accountId: "acc-garanti-vadesiz", bankId: "garanti", maxAmount: 96_000, frequency: "yearly", nextCollection: daysAgoIso(-40, 9), status: "active" },
 ];
 
 /** Otomatik ödeme talimatları — planlı, tekrarlı, VRP ve sweep örnekleri. */

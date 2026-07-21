@@ -2,7 +2,10 @@ import type {
   Account,
   AssistantExchange,
   BankId,
+  Beneficiary,
   CardCollection,
+  DirectDebitMandate,
+  IncomeInsight,
   CashFlowForecastPoint,
   CashFlowPoint,
   ClientSummary,
@@ -146,6 +149,16 @@ export class HttpBankingProvider implements BankingProvider {
   }
   async setSubscriptionStatus(id: string, status: "active" | "paused" | "canceled"): Promise<void> {
     await api(`/subscriptions/${id}/status`, { method: "POST", body: { status } });
+  }
+
+  getBeneficiaries(): Promise<Beneficiary[]> {
+    return api<Beneficiary[]>("/beneficiaries");
+  }
+  getDirectDebitMandates(): Promise<DirectDebitMandate[]> {
+    return api<DirectDebitMandate[]>("/direct-debits");
+  }
+  getIncomeInsights(companyId?: string): Promise<IncomeInsight> {
+    return api<IncomeInsight>("/insights/income", { query: companyId ? { companyId } : undefined });
   }
 
   getReconciliationExceptions(): Promise<ReconciliationException[]> {

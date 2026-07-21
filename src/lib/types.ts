@@ -30,6 +30,41 @@ export interface Account {
   lastSync: string; // ISO timestamp
   kind: "vadesiz" | "pos" | "doviz" | "ekhesap";
   overdraftLimit?: number;
+  blockedAmount?: number; // bloke / provizyon tutarı (PSD2 balance types)
+}
+
+/** Bankada kayıtlı lehdar (saved payee) — AIS ile okunur. */
+export interface Beneficiary {
+  id: string;
+  name: string;
+  iban: string;
+  bankId: BankId;
+  lastUsed?: string; // ISO
+  trusted?: boolean;
+}
+
+/** Otomatik ödeme talimatı (DD mandası) — AIS okuması: hesaptan çekilen düzenli tahsilatlar. */
+export interface DirectDebitMandate {
+  id: string;
+  creditor: string;
+  reference: string;
+  accountId: string;
+  bankId: BankId;
+  maxAmount: number;
+  frequency: "weekly" | "monthly" | "yearly";
+  nextCollection: string; // ISO
+  status: "active" | "canceled";
+}
+
+/** Gelir doğrulama & harcanabilirlik içgörüsü — hareketlerden hesaplanır (Plaid/Tink tarzı). */
+export interface IncomeInsight {
+  monthlyAverageIncome: number;
+  monthlyAverageExpense: number;
+  recurringIncomeSources: { source: string; amount: number; count: number }[];
+  affordabilityScore: number; // 0-100
+  disposableMonthly: number;
+  incomeStabilityLabel: "Düzenli" | "Değişken" | "Yetersiz veri";
+  monthsAnalyzed: number;
 }
 
 export type TransactionCategory =

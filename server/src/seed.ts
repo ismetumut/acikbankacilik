@@ -9,6 +9,8 @@ import {
   RECURRING_PAYMENTS,
   PAY_BY_BANK_REQUESTS,
   SUBSCRIPTIONS,
+  BENEFICIARIES,
+  DIRECT_DEBIT_MANDATES,
   CONSENTS,
   EXPECTED_INCOMING,
   EXPECTED_OUTGOING,
@@ -50,6 +52,8 @@ export const KEYS = {
   recurring: "recurring",
   payByBank: "payByBank",
   subscriptions: "subscriptions",
+  beneficiaries: "beneficiaries",
+  directDebits: "directDebits",
 } as const;
 
 /**
@@ -82,6 +86,8 @@ export function runSeed(): void {
     [KEYS.recurring]: RECURRING_PAYMENTS,
     [KEYS.payByBank]: PAY_BY_BANK_REQUESTS,
     [KEYS.subscriptions]: SUBSCRIPTIONS,
+    [KEYS.beneficiaries]: BENEFICIARIES,
+    [KEYS.directDebits]: DIRECT_DEBIT_MANDATES,
   };
 
   // Statik/türetilmiş koleksiyonlar (kullanıcı mutasyonu yok) her açılışta tazelenir,
@@ -91,6 +97,8 @@ export function runSeed(): void {
     KEYS.cashflowForecast,
     KEYS.erpCari,
     KEYS.erpInvoices,
+    KEYS.beneficiaries,
+    KEYS.directDebits,
     KEYS.reconciliation, // karşı taraf IBAN'ı + motor için tazelenir (erpMappings korunur)
   ]);
 

@@ -25,6 +25,9 @@ export function Balances() {
   const { companyId } = useCompany();
   const [currency, setCurrency] = useState<Currency>("TRY");
   const { data: accounts, loading } = useAsync(() => banking.getAccounts(companyId), [companyId]);
+  const { data: beneficiaries } = useAsync(() => banking.getBeneficiaries(), []);
+  const { data: ddMandates } = useAsync(() => banking.getDirectDebitMandates(), []);
+  const { data: insights } = useAsync(() => banking.getIncomeInsights(companyId), [companyId]);
 
   const scopeLabel = isConsolidated(companyId) ? "Tüm grup" : (companyOf(companyId)?.shortName ?? "");
   const symbol = CURRENCY_SYMBOLS[currency];
@@ -196,7 +199,15 @@ export function Balances() {
                     <td className="py-3 pr-3 text-right text-xs tabular text-muted">
                       {CURRENCY_SYMBOLS[a.currency]}
                       {a.availableBalance.toLocaleString("tr-TR")}
-                      {a.overdraftLimit ? " (limit dahil)" : ""}
+                      {a.balance - a.availableBalance > 0 && (
+                        <span className="ml-1 text-warning-700">
+                          · bloke {CURRENCY_SYMBOLS[a.currency]}
+                          {(a.balance - a.availableBalance).toLocaleString("tr-TR")}
+                        </span>
+                      )}
+                      {a.overdraftLimit ? (
+                        <span className="ml-1 text-brand-500">· limit {CURRENCY_SYMBOLS[a.currency]}{a.overdraftLimit.toLocaleString("tr-TR")}</span>
+                      ) : null}
                     </td>
                     <td className="py-3 text-xs text-muted">{formatRelative(a.lastSync)}</td>
                   </tr>
@@ -206,6 +217,108 @@ export function Balances() {
           </div>
         )}
       </Card>
+
+      {/* AIS derinliği: gelir içgörüsü + lehdarlar + otomatik ödeme talimatları */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+        <Card>
+          <CardTitle className="mb-1">Gelir & harcanabilirlik</CardTitle>
+          <p className="mb-4 text-xs text-muted">Hareketlerden hesaplanır (gelir doğrulama)</p>
+          {!insights ? (
+            <LoadingRows rows={4} />
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-end justify-between">
+                <div>
+                  <p className="text-xs text-muted">Aylık ort. gelir</p>
+                  <p className="font-display text-xl font-extrabold text-brand-500">
+                    ₺{insights.monthlyAverageIncome.toLocaleString("tr-TR")}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-muted">Aylık ort. gider</p>
+                  <p className="font-display text-lg font-bold text-negative-700">
+                    ₺{insights.monthlyAverageExpense.toLocaleString("tr-TR")}
+                  </p>
+                </div>
+              </div>
+              <div className="rounded-xl bg-cream-100 p-3">
+                <div className="mb-1 flex items-center justify-between text-xs">
+                  <span className="font-semibold text-ink-900">Harcanabilirlik skoru</span>
+                  <span className="font-bold text-ink-900">{insights.affordabilityScore}/100 · {insights.incomeStabilityLabel}</span>
+                </div>
+                <div className="h-2 w-full overflow-hidden rounded-full bg-cream-200">
+                  <div className="h-full rounded-full bg-brand-500" style={{ width: `${insights.affordabilityScore}%` }} />
+                </div>
+                <p className="mt-2 text-[11px] text-muted">
+                  Aylık harcanabilir: <span className="font-bold text-ink-900">₺{insights.disposableMonthly.toLocaleString("tr-TR")}</span> ·{" "}
+                  {insights.monthsAnalyzed} ay analiz
+                </p>
+              </div>
+              {insights.recurringIncomeSources.length > 0 && (
+                <div>
+                  <p className="mb-1 text-xs font-semibold text-ink-900">Düzenli gelir kaynakları</p>
+                  <div className="space-y-1">
+                    {insights.recurringIncomeSources.map((s) => (
+                      <div key={s.source} className="flex justify-between text-xs">
+                        <span className="truncate text-muted">{s.source} · {s.count}×</span>
+                        <span className="font-semibold text-ink-900">₺{s.amount.toLocaleString("tr-TR")}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <CardTitle className="mb-1">Kayıtlı lehdarlar</CardTitle>
+          <p className="mb-4 text-xs text-muted">Bankadan okunan güvenli alıcılar</p>
+          {!beneficiaries ? (
+            <LoadingRows rows={4} />
+          ) : (
+            <div className="divide-y divide-line">
+              {beneficiaries.map((b) => (
+                <div key={b.id} className="flex items-center justify-between gap-2 py-2.5">
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <BankAvatar bankId={b.bankId} size="sm" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-ink-900">{b.name}</p>
+                      <p className="truncate font-mono text-[11px] text-muted">{b.iban}</p>
+                    </div>
+                  </div>
+                  {b.trusted && <span className="shrink-0 rounded-full bg-brand-100 px-2 py-0.5 text-[10px] font-bold text-brand-600">güvenli</span>}
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+
+        <Card>
+          <CardTitle className="mb-1">Otomatik ödeme talimatları</CardTitle>
+          <p className="mb-4 text-xs text-muted">Hesaptan çekilen DD mandaları</p>
+          {!ddMandates ? (
+            <LoadingRows rows={3} />
+          ) : (
+            <div className="divide-y divide-line">
+              {ddMandates.map((m) => (
+                <div key={m.id} className="py-2.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate text-sm font-semibold text-ink-900">{m.creditor}</p>
+                    <span className="shrink-0 text-sm font-bold tabular text-ink-900">
+                      ≤ ₺{m.maxAmount.toLocaleString("tr-TR")}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-muted">
+                    {m.reference} · {m.frequency === "monthly" ? "aylık" : m.frequency === "yearly" ? "yıllık" : "haftalık"} · sıradaki{" "}
+                    {formatRelative(m.nextCollection)}
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </Card>
+      </div>
     </div>
   );
 }
