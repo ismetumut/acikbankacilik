@@ -20,6 +20,9 @@ server/*.db-wal
 .env
 .env.local
 
+# Build/deploy artifacts
+akort-frontend-monsterasp.zip
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
