@@ -44,6 +44,8 @@ jobs:
           server: ${{ secrets.FTP_HOST }}
           username: ${{ secrets.FTP_USERNAME }}
           password: ${{ secrets.FTP_PASSWORD }}
+          # Sifre acik gitmesin diye acik FTPS (MonsterASP port 21 uzerinde destekler).
+          protocol: ftps
           local-dir: ./dist/
-          # MonsterASP sitenin kök dizini (genelde /). Panele göre gerekirse /wwwroot/ yapın.
-          server-dir: /
+          # MonsterASP sitesinin kok dizini (panelde "Website Root: \wwwroot").
+          server-dir: /wwwroot/
