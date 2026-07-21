@@ -144,6 +144,177 @@ export const COMMON_ONBOARDING_CAUTIONS = [
   "Onay sonrası bankadan gelen SMS/e-posta aktivasyon bağlantısı 24 saat içinde tamamlanmalıdır.",
 ];
 
+// ── API Hub · ERP web servis entegrasyonları ─────────────────────────────────
+
+export interface ErpEndpoint {
+  method: string;
+  path: string;
+  desc: string;
+}
+
+export interface ErpIntegration {
+  id: string;
+  name: string;
+  vendor: string;
+  category: string;
+  protocol: "REST" | "SOAP";
+  version: string;
+  baseUrl: string;
+  auth: string;
+  format: "JSON" | "XML";
+  status: "Aktif" | "Beta" | "Yakında";
+  colorHex: string;
+  endpoints: ErpEndpoint[];
+  note: string;
+}
+
+const REST_ENDPOINTS: ErpEndpoint[] = [
+  { method: "GET", path: "/api/v1/cari", desc: "Cari hesap listesi" },
+  { method: "GET", path: "/api/v1/cari/{kod}", desc: "Cari hesap detayı ve bakiye" },
+  { method: "GET", path: "/api/v1/faturalar", desc: "Fatura listesi (tarih/ cari filtreli)" },
+  { method: "POST", path: "/api/v1/banka-hareketleri", desc: "Banka hareketi / dekont aktarımı" },
+  { method: "POST", path: "/api/v1/muhasebe-fisi", desc: "Muhasebe fişi oluşturma" },
+  { method: "GET", path: "/api/v1/mutabakat/durum", desc: "Cari mutabakat durumu sorgulama" },
+];
+
+const SOAP_ENDPOINTS: ErpEndpoint[] = [
+  { method: "SOAP", path: "GetCariListesi", desc: "Cari hesap listesi" },
+  { method: "SOAP", path: "GetCariBakiye", desc: "Cari hesap bakiye sorgu" },
+  { method: "SOAP", path: "GetFaturalar", desc: "Fatura listesi" },
+  { method: "SOAP", path: "AktarBankaHareketi", desc: "Banka hareketi / dekont aktarımı" },
+  { method: "SOAP", path: "OlusturMuhasebeFisi", desc: "Muhasebe fişi oluşturma" },
+];
+
+export const ERP_INTEGRATIONS: ErpIntegration[] = [
+  {
+    id: "logo-tiger",
+    name: "Logo Tiger 3 / GO 3",
+    vendor: "Logo Yazılım",
+    category: "Kurumsal ERP",
+    protocol: "REST",
+    version: "v2.4",
+    baseUrl: "https://{sunucu}/logo/restservice",
+    auth: "OAuth 2.0 (client_credentials)",
+    format: "JSON",
+    status: "Aktif",
+    colorHex: "#E4002B",
+    endpoints: REST_ENDPOINTS,
+    note: "Logo Nesnesi (LOBJECT) üzerinden cari ve dekont eşleşmesi; firma/dönem numarası header ile gönderilir.",
+  },
+  {
+    id: "logo-netsis",
+    name: "Logo Netsis 3 Enterprise",
+    vendor: "Logo Yazılım",
+    category: "Kurumsal ERP",
+    protocol: "SOAP",
+    version: "v9.x",
+    baseUrl: "https://{sunucu}/NetOpenX/NetRS.asmx",
+    auth: "Kullanıcı + Şifre + Branch/DB",
+    format: "XML",
+    status: "Aktif",
+    colorHex: "#00843D",
+    endpoints: SOAP_ENDPOINTS,
+    note: "NetOpenX (NetRS) web servisi; oturum açılıp DBUser/DBPassword ile şube ve dönem seçilir.",
+  },
+  {
+    id: "mikro",
+    name: "Mikro Jump / Fly",
+    vendor: "Mikro Yazılım",
+    category: "KOBİ ERP",
+    protocol: "REST",
+    version: "v1.8",
+    baseUrl: "https://api.mikro.com.tr/v1",
+    auth: "API Key + Bearer Token",
+    format: "JSON",
+    status: "Aktif",
+    colorHex: "#0056A4",
+    endpoints: REST_ENDPOINTS,
+    note: "Cari ve banka fişi entegrasyonu; token 60 dk geçerlidir, yenileme uç noktası ile tazelenir.",
+  },
+  {
+    id: "nebim",
+    name: "Nebim V3",
+    vendor: "Nebim",
+    category: "Perakende ERP",
+    protocol: "SOAP",
+    version: "v3.11",
+    baseUrl: "https://{sunucu}/NebimV3/Service.svc",
+    auth: "WS-Security (UsernameToken)",
+    format: "XML",
+    status: "Aktif",
+    colorHex: "#5B2A86",
+    endpoints: SOAP_ENDPOINTS,
+    note: "Perakende tahsilat ve POS mutabakatı için mağaza/kasa bazlı dekont aktarımı desteklenir.",
+  },
+  {
+    id: "sap-b1",
+    name: "SAP Business One",
+    vendor: "SAP",
+    category: "Kurumsal ERP",
+    protocol: "REST",
+    version: "Service Layer v2",
+    baseUrl: "https://{sunucu}:50000/b1s/v2",
+    auth: "Session Login (B1SESSION cookie)",
+    format: "JSON",
+    status: "Aktif",
+    colorHex: "#0FAAFF",
+    endpoints: REST_ENDPOINTS,
+    note: "Service Layer OData; BusinessPartners ve JournalEntries nesneleri üzerinden eşleşme yapılır.",
+  },
+  {
+    id: "dynamics",
+    name: "Microsoft Dynamics 365 BC",
+    vendor: "Microsoft",
+    category: "Kurumsal ERP",
+    protocol: "REST",
+    version: "API v2.0",
+    baseUrl: "https://api.businesscentral.dynamics.com/v2.0",
+    auth: "OAuth 2.0 (Azure AD)",
+    format: "JSON",
+    status: "Beta",
+    colorHex: "#0067B8",
+    endpoints: REST_ENDPOINTS,
+    note: "Azure AD uygulama kaydı ve yönetici onayı gerekir; environment/company parametreleri zorunludur.",
+  },
+  {
+    id: "uyumsoft",
+    name: "Uyumsoft ERP",
+    vendor: "Uyumsoft",
+    category: "Kurumsal ERP",
+    protocol: "SOAP",
+    version: "v2.2",
+    baseUrl: "https://{sunucu}/UyumApi/Service.asmx",
+    auth: "Token (Login servisi)",
+    format: "XML",
+    status: "Aktif",
+    colorHex: "#F26522",
+    endpoints: SOAP_ENDPOINTS,
+    note: "e-Fatura entegratör tarafıyla ortak token; banka dekontu cari harekete otomatik bağlanır.",
+  },
+  {
+    id: "eta",
+    name: "ETA SQL",
+    vendor: "ETA Bilgisayar",
+    category: "KOBİ ERP",
+    protocol: "SOAP",
+    version: "v8.35",
+    baseUrl: "https://{sunucu}/EtaWS/Service.asmx",
+    auth: "Kullanıcı + Şifre",
+    format: "XML",
+    status: "Yakında",
+    colorHex: "#1F6FB2",
+    endpoints: SOAP_ENDPOINTS,
+    note: "Yerel sunucu kurulumları için VPN/sabit IP gerektirir; entegrasyon Q3 2026'da yayına alınacaktır.",
+  },
+];
+
+export const API_HUB_STATS = {
+  connectedErp: 5,
+  activeEndpoints: 34,
+  monthlyCalls: "128.400",
+  avgLatencyMs: 210,
+};
+
 /** Sentinel companyId meaning "every group company, consolidated". */
 export const ALL_COMPANIES = "all" as const;
 

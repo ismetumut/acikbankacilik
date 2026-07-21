@@ -19,6 +19,7 @@ const OnboardingWizard = lazy(() =>
   import("@/pages/OnboardingWizard").then((m) => ({ default: m.OnboardingWizard })),
 );
 const MobileShowcase = lazy(() => import("@/pages/MobileShowcase").then((m) => ({ default: m.MobileShowcase })));
+const AdminPanel = lazy(() => import("@/pages/AdminPanel").then((m) => ({ default: m.AdminPanel })));
 const NotFound = lazy(() => import("@/pages/NotFound").then((m) => ({ default: m.NotFound })));
 
 export default function App() {
@@ -40,6 +41,7 @@ export default function App() {
             <Route path="/musteri-paneli" element={<ClientPanel />} />
             <Route path="/kurulum" element={<OnboardingWizard />} />
             <Route path="/mobil" element={<MobileShowcase />} />
+            <Route path="/admin" element={<AdminPanel />} />
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>

@@ -18,6 +18,7 @@ const ROUTE_TITLES: Record<string, string> = {
   "/musteri-paneli": "Müşteri paneli",
   "/kurulum": "Kurulum sihirbazı",
   "/mobil": "Mobil uygulama",
+  "/admin": "Admin panel · API Hub",
 };
 
 export function Header({ onMenuClick }: { onMenuClick: () => void }) {
