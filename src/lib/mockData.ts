@@ -12,6 +12,7 @@ import type {
   ConsentGrant,
   Currency,
   ErpCari,
+  ErpInvoice,
   ExpectedCashItem,
   NotificationSetting,
   OverdueReceivable,
@@ -906,6 +907,27 @@ export const ERP_CARI_LIST: ErpCari[] = [
   { id: "cari-8", name: "Aksa Yapı Malz. San. Tic. Ltd.", iban: "TR95 0001 0002 3456 7788 0122 08", vergiNo: "8901234567" },
 ];
 
+/**
+ * Açık ERP faturaları — banka hareketleriyle eşleştirme motorunun aday havuzu.
+ * alacak: müşteri bize borçlu (gelen ödemeyle kapanır) · borc: tedarikçiye borçluyuz (giden ödemeyle kapanır).
+ */
+export const ERP_INVOICES: ErpInvoice[] = [
+  // Aksa Yapı (cari-8) — rec-1: tek fatura 57.820 veya 1163+1170 toplamı
+  { id: "inv-1184", docNo: "FTR-2026-1184", cariId: "cari-8", direction: "alacak", amount: 57_820, issueDate: daysAgoIso(7), dueDate: daysAgoIso(-23), status: "open" },
+  { id: "inv-1163", docNo: "FTR-2026-1163", cariId: "cari-8", direction: "alacak", amount: 26_300, issueDate: daysAgoIso(13), dueDate: daysAgoIso(-17), status: "open" },
+  { id: "inv-1170", docNo: "FTR-2026-1170", cariId: "cari-8", direction: "alacak", amount: 31_520, issueDate: daysAgoIso(11), dueDate: daysAgoIso(-19), status: "open" },
+  // Mert Nakliyat (cari-5) — rec-2: giden 12.400
+  { id: "inv-1177", docNo: "FTR-2026-1177", cariId: "cari-5", direction: "borc", amount: 12_400, issueDate: daysAgoIso(20), dueDate: daysAgoIso(-5), status: "open" },
+  // Delta Elektrik (cari-3) — rec-4: giden 31.075 (75 fark)
+  { id: "inv-1122", docNo: "FTR-2026-1122", cariId: "cari-3", direction: "borc", amount: 31_000, issueDate: daysAgoIso(19), dueDate: daysAgoIso(-2), status: "open" },
+  // Havuzu gerçekçi kılan diğer açık faturalar
+  { id: "inv-1201", docNo: "FTR-2026-1201", cariId: "cari-2", direction: "alacak", amount: 42_000, issueDate: daysAgoIso(5), dueDate: daysAgoIso(-25), status: "open" },
+  { id: "inv-1208", docNo: "FTR-2026-1208", cariId: "cari-7", direction: "alacak", amount: 18_750, issueDate: daysAgoIso(4), dueDate: daysAgoIso(-26), status: "open" },
+  { id: "inv-1195", docNo: "FTR-2026-1195", cariId: "cari-1", direction: "borc", amount: 64_300, issueDate: daysAgoIso(9), dueDate: daysAgoIso(-6), status: "open" },
+  { id: "inv-1189", docNo: "FTR-2026-1189", cariId: "cari-6", direction: "borc", amount: 3_480, issueDate: daysAgoIso(12), dueDate: daysAgoIso(-3), status: "open" },
+  { id: "inv-1211", docNo: "FTR-2026-1211", cariId: "cari-4", direction: "borc", amount: 48_200, issueDate: daysAgoIso(2), dueDate: daysAgoIso(-28), status: "open" },
+];
+
 /** Sanal POS (üye işyeri) komisyon oranları — tek çekim ve taksitli için ayrı. */
 export const POS_COMMISSION = { single: 0.0189, installment: 0.0245 };
 
@@ -1042,6 +1064,7 @@ export const RECONCILIATION_EXCEPTIONS: ReconciliationException[] = [
     bankId: "ziraat",
     accountTail: "4417",
     customer: "Aksa Yapı Malz. San. Tic. Ltd.",
+    counterpartyIban: "TR95 0001 0002 3456 7788 0122 08",
     date: daysAgoIso(2, 11, 34),
     description: 'FAST · "AKSA YAPI TEM ODEME 2026-7"',
     amount: 57_820,
@@ -1058,6 +1081,7 @@ export const RECONCILIATION_EXCEPTIONS: ReconciliationException[] = [
     bankId: "isbankasi",
     accountTail: "8821",
     customer: "Mert Nakliyat",
+    counterpartyIban: "TR29 0006 4000 0011 7723 6788 05",
     date: daysAgoIso(3, 17, 5),
     description: "Açıklama boş, karşı IBAN yeni",
     amount: -12_400,
@@ -1084,6 +1108,7 @@ export const RECONCILIATION_EXCEPTIONS: ReconciliationException[] = [
     bankId: "yapikredi",
     accountTail: "4155",
     customer: "Delta Elektrik",
+    counterpartyIban: "TR64 0006 7010 0000 1122 4155 03",
     date: daysAgoIso(5),
     description: "Fatura tutarı ₺31.000 — ₺75 fark",
     amount: -31_075,

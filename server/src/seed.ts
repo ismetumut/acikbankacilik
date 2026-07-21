@@ -4,6 +4,8 @@ import {
   CASH_FLOW_30D,
   CASH_FLOW_FORECAST,
   CLIENTS,
+  ERP_CARI_LIST,
+  ERP_INVOICES,
   CONSENTS,
   EXPECTED_INCOMING,
   EXPECTED_OUTGOING,
@@ -39,6 +41,9 @@ export const KEYS = {
   cashflowForecast: "cashflowForecast",
   expectedIncoming: "expectedIncoming",
   expectedOutgoing: "expectedOutgoing",
+  erpCari: "erpCari",
+  erpInvoices: "erpInvoices",
+  erpMappings: "erpMappings",
 } as const;
 
 /**
@@ -65,11 +70,20 @@ export function runSeed(): void {
     [KEYS.cashflowForecast]: CASH_FLOW_FORECAST,
     [KEYS.expectedIncoming]: EXPECTED_INCOMING,
     [KEYS.expectedOutgoing]: EXPECTED_OUTGOING,
+    [KEYS.erpCari]: ERP_CARI_LIST,
+    [KEYS.erpInvoices]: ERP_INVOICES,
+    [KEYS.erpMappings]: [],
   };
 
   // Statik/türetilmiş koleksiyonlar (kullanıcı mutasyonu yok) her açılışta tazelenir,
   // böylece veri şekli değişince (ör. 30→90 günlük nakit akışı) yeniden dağıtımda güncellenir.
-  const REFRESH_KEYS = new Set<string>([KEYS.cashflow30d, KEYS.cashflowForecast]);
+  const REFRESH_KEYS = new Set<string>([
+    KEYS.cashflow30d,
+    KEYS.cashflowForecast,
+    KEYS.erpCari,
+    KEYS.erpInvoices,
+    KEYS.reconciliation, // karşı taraf IBAN'ı + motor için tazelenir (erpMappings korunur)
+  ]);
 
   let seededCollections = 0;
   for (const [key, value] of Object.entries(seedMap)) {

@@ -7,6 +7,9 @@ import type {
   CashFlowPoint,
   ClientSummary,
   ConsentGrant,
+  ErpCari,
+  ErpInvoice,
+  ErpMapping,
   ExpectedCashItem,
   NotificationSetting,
   OverdueReceivable,
@@ -98,6 +101,19 @@ export class HttpBankingProvider implements BankingProvider {
   }
   async matchReconciliation(exceptionId: string, candidateId: string): Promise<void> {
     await api(`/reconciliation/${exceptionId}/match`, { method: "POST", body: { candidateId } });
+  }
+
+  getErpCariList(): Promise<ErpCari[]> {
+    return api<ErpCari[]>("/erp/cari");
+  }
+  getErpInvoices(): Promise<ErpInvoice[]> {
+    return api<ErpInvoice[]>("/erp/invoices");
+  }
+  getErpMappings(): Promise<ErpMapping[]> {
+    return api<ErpMapping[]>("/erp/mappings");
+  }
+  async saveErpMapping(key: string, cariId: string): Promise<void> {
+    await api("/erp/mappings", { method: "POST", body: { key, cariId } });
   }
 
   getCashFlow30d(): Promise<CashFlowPoint[]> {

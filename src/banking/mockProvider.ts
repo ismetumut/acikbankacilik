@@ -7,6 +7,9 @@ import type {
   CashFlowPoint,
   ClientSummary,
   ConsentGrant,
+  ErpCari,
+  ErpInvoice,
+  ErpMapping,
   NotificationSetting,
   OverdueReceivable,
   PaymentLink,
@@ -35,6 +38,8 @@ import {
   RECENT_CARD_COLLECTIONS,
   RECENT_PAYMENTS,
   RECONCILIATION_EXCEPTIONS,
+  ERP_CARI_LIST,
+  ERP_INVOICES,
   REPORT_PACKAGES,
   TRANSACTIONS,
   bankOf,
@@ -65,6 +70,7 @@ let paymentLinks = [...PAYMENT_LINKS];
 let cardCollections = [...RECENT_CARD_COLLECTIONS];
 const overdueReceivables = [...OVERDUE_RECEIVABLES];
 let reconciliationExceptions = [...RECONCILIATION_EXCEPTIONS];
+let erpMappings: ErpMapping[] = [];
 let reportPackages = [...REPORT_PACKAGES];
 let notificationSettings = [...NOTIFICATION_SETTINGS];
 let assistantHistory = [...ASSISTANT_HISTORY];
@@ -270,6 +276,26 @@ export class MockBankingProvider implements BankingProvider {
   async matchReconciliation(exceptionId: string, _candidateId: string): Promise<void> {
     reconciliationExceptions = reconciliationExceptions.filter((e) => e.id !== exceptionId);
     await delay(undefined, 350);
+  }
+
+  async getErpCariList(): Promise<ErpCari[]> {
+    return delay([...ERP_CARI_LIST]);
+  }
+  async getErpInvoices(): Promise<ErpInvoice[]> {
+    return delay([...ERP_INVOICES]);
+  }
+  async getErpMappings(): Promise<ErpMapping[]> {
+    return delay([...erpMappings]);
+  }
+  async saveErpMapping(key: string, cariId: string): Promise<void> {
+    const now = new Date().toISOString();
+    const existing = erpMappings.find((m) => m.key === key);
+    if (existing) {
+      erpMappings = erpMappings.map((m) => (m.key === key ? { ...m, cariId, count: m.count + 1, updatedAt: now } : m));
+    } else {
+      erpMappings = [...erpMappings, { key, cariId, count: 1, updatedAt: now }];
+    }
+    await delay(undefined, 200);
   }
 
   async getCashFlow30d(): Promise<CashFlowPoint[]> {

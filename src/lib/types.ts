@@ -95,6 +95,60 @@ export interface ErpCari {
   vergiNo?: string;
 }
 
+/** Açık ERP faturası — banka hareketiyle eşleştirilecek kayıt. */
+export interface ErpInvoice {
+  id: string;
+  docNo: string; // "FTR-2026-1184"
+  cariId: string;
+  direction: "alacak" | "borc"; // alacak: müşteri bize öder (gelen) · borc: tedarikçiye öderiz (giden)
+  amount: number; // pozitif tutar
+  issueDate: string; // ISO
+  dueDate: string; // ISO
+  status: "open" | "matched";
+}
+
+/** Öğrenilen eşleme: bir gönderen/karşı tarafın kalıcı olarak bağlandığı cari. */
+export interface ErpMapping {
+  key: string; // normalize edilmiş karşı taraf anahtarı (isim veya IBAN)
+  cariId: string;
+  count: number; // kaç kez onaylandı
+  updatedAt: string;
+}
+
+export type MatchSignal = "iban" | "reference" | "amount" | "name" | "date" | "learned" | "combo" | "balance";
+
+/** Bir skorun neden verildiğini açıklayan tek gerekçe. */
+export interface MatchReason {
+  signal: MatchSignal;
+  label: string; // "Fatura no 1184 açıklamada bulundu"
+  positive: boolean;
+}
+
+export type MatchBand = "auto" | "review" | "manual";
+
+/** Motorun ürettiği tek eşleşme adayı. */
+export interface MatchCandidate {
+  id: string;
+  kind: "invoice" | "combo" | "balance";
+  label: string;
+  detail: string;
+  amount: number;
+  cariId?: string;
+  invoiceIds: string[];
+  score: number; // 0-100 güven
+  band: MatchBand;
+  reasons: MatchReason[];
+}
+
+/** Motora verilen banka hareketi (işaretli tutar: + gelen, - giden). */
+export interface MatchInput {
+  counterparty: string;
+  description: string;
+  amount: number;
+  date: string;
+  iban?: string;
+}
+
 export interface RecentPayment {
   id: string;
   bankId: BankId;
@@ -163,6 +217,7 @@ export interface ReconciliationException {
   bankId: BankId;
   accountTail: string;
   customer: string;
+  counterpartyIban?: string; // karşı taraf IBAN'ı — eşleştirme motoru için güçlü sinyal
   date: string;
   description: string;
   amount: number;

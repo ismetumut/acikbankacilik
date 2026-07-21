@@ -8,6 +8,9 @@ import type {
   CashFlowPoint,
   ClientSummary,
   ConsentGrant,
+  ErpCari,
+  ErpInvoice,
+  ErpMapping,
   ExpectedCashItem,
   NotificationSetting,
   OverdueReceivable,
@@ -131,6 +134,12 @@ export interface BankingProvider {
 
   getReconciliationExceptions(): Promise<ReconciliationException[]>;
   matchReconciliation(exceptionId: string, candidateId: string): Promise<void>;
+
+  // ERP eşleştirme motoru verileri + öğrenme döngüsü
+  getErpCariList(): Promise<ErpCari[]>;
+  getErpInvoices(): Promise<ErpInvoice[]>;
+  getErpMappings(): Promise<ErpMapping[]>;
+  saveErpMapping(key: string, cariId: string): Promise<void>;
 
   getCashFlow30d(): Promise<CashFlowPoint[]>;
   getCashFlowForecast(horizonDays: number): Promise<CashFlowForecastPoint[]>;

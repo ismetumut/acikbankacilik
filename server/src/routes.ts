@@ -4,6 +4,7 @@ import type {
   AssistantExchange,
   CardCollection,
   ConsentGrant,
+  ErpMapping,
   NotificationSetting,
   PaymentLink,
   PendingApproval,
@@ -276,6 +277,26 @@ apiRouter.get("/reconciliation", (_req, res) =>
 apiRouter.post("/reconciliation/:id/match", (req, res) => {
   const remaining = getCollection<ReconciliationException>(KEYS.reconciliation).filter((e) => e.id !== req.params.id);
   setCollection(KEYS.reconciliation, remaining);
+  res.json({ ok: true });
+});
+
+/* ----------------------------------------------------------------- erp ---- */
+
+apiRouter.get("/erp/cari", (_req, res) => res.json(getCollection(KEYS.erpCari)));
+apiRouter.get("/erp/invoices", (_req, res) => res.json(getCollection(KEYS.erpInvoices)));
+apiRouter.get("/erp/mappings", (_req, res) => res.json(getCollection(KEYS.erpMappings)));
+
+// Öğrenme döngüsü: bir karşı taraf → cari eşlemesini kaydeder/pekiştirir.
+apiRouter.post("/erp/mappings", (req, res) => {
+  const { key, cariId } = (req.body ?? {}) as { key?: string; cariId?: string };
+  if (!key || !cariId) return res.status(400).json({ error: "key ve cariId zorunlu" });
+  const list = getCollection<ErpMapping>(KEYS.erpMappings);
+  const now = new Date().toISOString();
+  const existing = list.find((m) => m.key === key);
+  const updated = existing
+    ? list.map((m) => (m.key === key ? { ...m, cariId, count: m.count + 1, updatedAt: now } : m))
+    : [...list, { key, cariId, count: 1, updatedAt: now }];
+  setCollection(KEYS.erpMappings, updated);
   res.json({ ok: true });
 });
 
