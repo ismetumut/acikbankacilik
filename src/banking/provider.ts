@@ -1,11 +1,16 @@
 import type {
   Account,
+  ApiEnvironment,
+  ApiKey,
   ApprovalRole,
   AssistantExchange,
   BankId,
   Beneficiary,
   DirectDebitMandate,
   IncomeInsight,
+  WebhookDelivery,
+  WebhookEvent,
+  WebhookSubscription,
   CardCollection,
   CashFlowForecastPoint,
   CashFlowPoint,
@@ -95,6 +100,17 @@ export interface NewRecurringInput {
   vrpMaxPerPeriod?: number;
   targetAccountId?: string;
   sweepKeepBalance?: number;
+}
+
+export interface NewApiKeyInput {
+  name: string;
+  environment: ApiEnvironment;
+  scopes: string[];
+}
+
+export interface NewWebhookInput {
+  url: string;
+  events: WebhookEvent[];
 }
 
 export interface NewPayByBankInput {
@@ -227,6 +243,19 @@ export interface BankingProvider {
   generateReportPackage(): Promise<ReportPackage>;
 
   getClients(): Promise<ClientSummary[]>;
+
+  // Geliştirici platformu: API anahtarları + webhook altyapısı
+  getApiKeys(): Promise<ApiKey[]>;
+  /** Yeni anahtar oluşturur; tam gizli anahtar yalnızca bir kez döner. */
+  createApiKey(input: NewApiKeyInput): Promise<{ key: ApiKey; secret: string }>;
+  revokeApiKey(id: string): Promise<void>;
+  getWebhooks(): Promise<WebhookSubscription[]>;
+  createWebhook(input: NewWebhookInput): Promise<WebhookSubscription>;
+  setWebhookActive(id: string, active: boolean): Promise<void>;
+  deleteWebhook(id: string): Promise<void>;
+  getWebhookDeliveries(): Promise<WebhookDelivery[]>;
+  /** Başarısız teslimi yeniden dener. */
+  redeliverWebhook(id: string): Promise<void>;
 
   getNotificationSettings(): Promise<NotificationSetting[]>;
   toggleNotification(id: string): Promise<void>;

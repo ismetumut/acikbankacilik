@@ -1,5 +1,6 @@
 import type {
   Account,
+  ApiKey,
   AssistantExchange,
   Bank,
   BankId,
@@ -29,6 +30,8 @@ import type {
   SettlementBatch,
   Transaction,
   TransactionCategory,
+  WebhookDelivery,
+  WebhookSubscription,
 } from "./types";
 
 /** Deterministic PRNG (mulberry32) so mock data is stable across reloads. */
@@ -946,6 +949,26 @@ export const SUBSCRIPTIONS: Subscription[] = [
   { id: "sub-1", customer: "Delta Elektrik", planLabel: "Aylık bakım paketi", amount: 4_500, frequency: "monthly", status: "active", method: "a2a", mandateRef: "VRP-DLT-0091", nextCharge: daysAgoIso(-6, 9), collectedCount: 8, createdAt: daysAgoIso(240) },
   { id: "sub-2", customer: "Mert Nakliyat", planLabel: "Haftalık lojistik hizmeti", amount: 2_800, frequency: "weekly", status: "active", method: "a2a", mandateRef: "VRP-MRT-0148", nextCharge: daysAgoIso(-2, 9), collectedCount: 22, createdAt: daysAgoIso(160) },
   { id: "sub-3", customer: "Anadolu Ambalaj", planLabel: "Premium destek", amount: 1_200, frequency: "monthly", status: "paused", method: "card", mandateRef: "DD-ANA-0203", nextCharge: daysAgoIso(-12, 9), collectedCount: 5, createdAt: daysAgoIso(150) },
+];
+
+/** Geliştirici API anahtarları. */
+export const API_KEYS: ApiKey[] = [
+  { id: "key-1", name: "Üretim — ERP entegrasyonu", prefix: "ak_live_a1b2••••", environment: "production", scopes: ["accounts:read", "payments:write", "webhooks"], createdAt: daysAgoIso(120), lastUsed: daysAgoIso(0, 11) },
+  { id: "key-2", name: "Sandbox — test", prefix: "ak_test_9f3d••••", environment: "sandbox", scopes: ["accounts:read", "payments:write", "collections:write"], createdAt: daysAgoIso(60), lastUsed: daysAgoIso(2) },
+];
+
+/** Webhook abonelikleri. */
+export const WEBHOOK_SUBSCRIPTIONS: WebhookSubscription[] = [
+  { id: "wh-1", url: "https://erp.demirticaret.com/hooks/akort", events: ["payment.completed", "reconciliation.matched"], secretMasked: "whsec_4a••••", active: true, createdAt: daysAgoIso(90) },
+  { id: "wh-2", url: "https://ops.demirticaret.com/webhooks/collections", events: ["collection.paid"], secretMasked: "whsec_7c••••", active: true, createdAt: daysAgoIso(40) },
+];
+
+/** Son webhook teslimleri (izleme). */
+export const WEBHOOK_DELIVERIES: WebhookDelivery[] = [
+  { id: "dlv-1", event: "payment.completed", status: "success", statusCode: 200, attempts: 1, at: daysAgoIso(0, 11, 12) },
+  { id: "dlv-2", event: "collection.paid", status: "success", statusCode: 200, attempts: 1, at: daysAgoIso(0, 10, 42) },
+  { id: "dlv-3", event: "reconciliation.matched", status: "failed", statusCode: 503, attempts: 3, at: daysAgoIso(0, 9, 30) },
+  { id: "dlv-4", event: "payment.completed", status: "success", statusCode: 200, attempts: 2, at: daysAgoIso(1, 16, 5) },
 ];
 
 /** POS hakediş / settlement partileri — kart tahsilatları T+1 hesaba geçer. */

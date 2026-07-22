@@ -29,6 +29,7 @@ export const NAV_GROUPS: NavGroup[] = [
     items: [
       { label: "Raporlar & denetim", path: "/raporlar" },
       { label: "Rızalar & bildirimler", path: "/rizalar", badgeKey: "consents" },
+      { label: "Geliştirici / API", path: "/gelistirici" },
       { label: "Admin panel", path: "/admin" },
     ],
   },

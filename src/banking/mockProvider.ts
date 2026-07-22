@@ -1,11 +1,14 @@
 import type {
   Account,
+  ApiKey,
   AssistantExchange,
   BankId,
   Beneficiary,
   CardCollection,
   DirectDebitMandate,
   IncomeInsight,
+  WebhookDelivery,
+  WebhookSubscription,
   CashFlowForecastPoint,
   CashFlowPoint,
   ClientSummary,
@@ -53,6 +56,9 @@ import {
   BENEFICIARIES,
   DIRECT_DEBIT_MANDATES,
   SETTLEMENT_BATCHES,
+  API_KEYS,
+  WEBHOOK_SUBSCRIPTIONS,
+  WEBHOOK_DELIVERIES,
   ERP_CARI_LIST,
   ERP_INVOICES,
   REPORT_PACKAGES,
@@ -64,11 +70,13 @@ import type {
   BankingProvider,
   CardPaymentInput,
   CardPaymentResult,
+  NewApiKeyInput,
   NewPayByBankInput,
   NewPaymentInput,
   NewPaymentLinkInput,
   NewRecurringInput,
   NewSubscriptionInput,
+  NewWebhookInput,
   PaymentBatchInput,
   TransactionPage,
   TransactionQuery,
@@ -96,6 +104,9 @@ let erpMappings: ErpMapping[] = [];
 let recurringPayments = [...RECURRING_PAYMENTS];
 let payByBankRequests = [...PAY_BY_BANK_REQUESTS];
 let subscriptions = [...SUBSCRIPTIONS];
+let apiKeys = [...API_KEYS];
+let webhooks = [...WEBHOOK_SUBSCRIPTIONS];
+let webhookDeliveries = [...WEBHOOK_DELIVERIES];
 let reportPackages = [...REPORT_PACKAGES];
 let notificationSettings = [...NOTIFICATION_SETTINGS];
 let assistantHistory = [...ASSISTANT_HISTORY];
@@ -121,6 +132,61 @@ export class MockBankingProvider implements BankingProvider {
   }
   async screenPayee(name: string): Promise<SanctionsResult> {
     return delay(screenSanctions(name), 350);
+  }
+
+  async getApiKeys(): Promise<ApiKey[]> {
+    return delay([...apiKeys]);
+  }
+  async createApiKey(input: NewApiKeyInput): Promise<{ key: ApiKey; secret: string }> {
+    const tag = input.environment === "production" ? "live" : "test";
+    const rand = Math.random().toString(36).slice(2, 10);
+    const secret = `ak_${tag}_${rand}${Math.random().toString(36).slice(2, 12)}`;
+    const key: ApiKey = {
+      id: `key-${Date.now()}`,
+      name: input.name,
+      prefix: `ak_${tag}_${rand.slice(0, 4)}••••`,
+      environment: input.environment,
+      scopes: input.scopes,
+      createdAt: new Date().toISOString(),
+    };
+    apiKeys = [key, ...apiKeys];
+    return delay({ key, secret }, 400);
+  }
+  async revokeApiKey(id: string): Promise<void> {
+    apiKeys = apiKeys.map((k) => (k.id === id ? { ...k, revoked: true } : k));
+    await delay(undefined, 200);
+  }
+  async getWebhooks(): Promise<WebhookSubscription[]> {
+    return delay([...webhooks]);
+  }
+  async createWebhook(input: NewWebhookInput): Promise<WebhookSubscription> {
+    const wh: WebhookSubscription = {
+      id: `wh-${Date.now()}`,
+      url: input.url,
+      events: input.events,
+      secretMasked: `whsec_${Math.random().toString(36).slice(2, 6)}••••`,
+      active: true,
+      createdAt: new Date().toISOString(),
+    };
+    webhooks = [wh, ...webhooks];
+    return delay(wh, 400);
+  }
+  async setWebhookActive(id: string, active: boolean): Promise<void> {
+    webhooks = webhooks.map((w) => (w.id === id ? { ...w, active } : w));
+    await delay(undefined, 200);
+  }
+  async deleteWebhook(id: string): Promise<void> {
+    webhooks = webhooks.filter((w) => w.id !== id);
+    await delay(undefined, 200);
+  }
+  async getWebhookDeliveries(): Promise<WebhookDelivery[]> {
+    return delay([...webhookDeliveries]);
+  }
+  async redeliverWebhook(id: string): Promise<void> {
+    webhookDeliveries = webhookDeliveries.map((d) =>
+      d.id === id ? { ...d, status: "success" as const, statusCode: 200, attempts: d.attempts + 1, at: new Date().toISOString() } : d,
+    );
+    await delay(undefined, 300);
   }
 
   async getTransactions(query: TransactionQuery): Promise<TransactionPage> {

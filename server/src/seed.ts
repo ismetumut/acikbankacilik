@@ -12,6 +12,9 @@ import {
   BENEFICIARIES,
   DIRECT_DEBIT_MANDATES,
   SETTLEMENT_BATCHES,
+  API_KEYS,
+  WEBHOOK_SUBSCRIPTIONS,
+  WEBHOOK_DELIVERIES,
   CONSENTS,
   EXPECTED_INCOMING,
   EXPECTED_OUTGOING,
@@ -56,6 +59,9 @@ export const KEYS = {
   beneficiaries: "beneficiaries",
   directDebits: "directDebits",
   settlements: "settlements",
+  apiKeys: "apiKeys",
+  webhooks: "webhooks",
+  webhookDeliveries: "webhookDeliveries",
 } as const;
 
 /**
@@ -91,6 +97,9 @@ export function runSeed(): void {
     [KEYS.beneficiaries]: BENEFICIARIES,
     [KEYS.directDebits]: DIRECT_DEBIT_MANDATES,
     [KEYS.settlements]: SETTLEMENT_BATCHES,
+    [KEYS.apiKeys]: API_KEYS,
+    [KEYS.webhooks]: WEBHOOK_SUBSCRIPTIONS,
+    [KEYS.webhookDeliveries]: WEBHOOK_DELIVERIES,
   };
 
   // Statik/türetilmiş koleksiyonlar (kullanıcı mutasyonu yok) her açılışta tazelenir,

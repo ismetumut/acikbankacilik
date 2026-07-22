@@ -1,9 +1,12 @@
 import { Router } from "express";
 import type {
   Account,
+  ApiKey,
   AssistantExchange,
   CardCollection,
   CashFlowPoint,
+  WebhookDelivery,
+  WebhookSubscription,
   ConsentGrant,
   ErpCari,
   ErpMapping,
@@ -519,6 +522,81 @@ apiRouter.get("/reconciliation", (_req, res) =>
 apiRouter.post("/reconciliation/:id/match", (req, res) => {
   const remaining = getCollection<ReconciliationException>(KEYS.reconciliation).filter((e) => e.id !== req.params.id);
   setCollection(KEYS.reconciliation, remaining);
+  res.json({ ok: true });
+});
+
+/* ------------------------------------------------------ developer platform */
+
+apiRouter.get("/dev/api-keys", (_req, res) => res.json(getCollection<ApiKey>(KEYS.apiKeys)));
+
+apiRouter.post("/dev/api-keys", (req, res) => {
+  const { name, environment, scopes } = (req.body ?? {}) as { name?: string; environment?: ApiKey["environment"]; scopes?: string[] };
+  const tag = environment === "production" ? "live" : "test";
+  const rand = Math.random().toString(36).slice(2, 10);
+  const secret = `ak_${tag}_${rand}${Math.random().toString(36).slice(2, 12)}`;
+  const key: ApiKey = {
+    id: `key-${Date.now()}`,
+    name: name ?? "Anahtar",
+    prefix: `ak_${tag}_${rand.slice(0, 4)}••••`,
+    environment: environment ?? "sandbox",
+    scopes: scopes ?? [],
+    createdAt: new Date().toISOString(),
+  };
+  setCollection(KEYS.apiKeys, [key, ...getCollection<ApiKey>(KEYS.apiKeys)]);
+  res.json({ key, secret });
+});
+
+apiRouter.post("/dev/api-keys/:id/revoke", (req, res) => {
+  setCollection(
+    KEYS.apiKeys,
+    getCollection<ApiKey>(KEYS.apiKeys).map((k) => (k.id === req.params.id ? { ...k, revoked: true } : k)),
+  );
+  res.json({ ok: true });
+});
+
+apiRouter.get("/dev/webhooks", (_req, res) => res.json(getCollection<WebhookSubscription>(KEYS.webhooks)));
+
+apiRouter.post("/dev/webhooks", (req, res) => {
+  const { url, events } = (req.body ?? {}) as { url?: string; events?: WebhookSubscription["events"] };
+  const wh: WebhookSubscription = {
+    id: `wh-${Date.now()}`,
+    url: url ?? "",
+    events: events ?? [],
+    secretMasked: `whsec_${Math.random().toString(36).slice(2, 6)}••••`,
+    active: true,
+    createdAt: new Date().toISOString(),
+  };
+  setCollection(KEYS.webhooks, [wh, ...getCollection<WebhookSubscription>(KEYS.webhooks)]);
+  res.json(wh);
+});
+
+apiRouter.post("/dev/webhooks/:id/active", (req, res) => {
+  const { active } = (req.body ?? {}) as { active?: boolean };
+  setCollection(
+    KEYS.webhooks,
+    getCollection<WebhookSubscription>(KEYS.webhooks).map((w) => (w.id === req.params.id ? { ...w, active: !!active } : w)),
+  );
+  res.json({ ok: true });
+});
+
+apiRouter.delete("/dev/webhooks/:id", (req, res) => {
+  setCollection(
+    KEYS.webhooks,
+    getCollection<WebhookSubscription>(KEYS.webhooks).filter((w) => w.id !== req.params.id),
+  );
+  res.json({ ok: true });
+});
+
+apiRouter.get("/dev/webhook-deliveries", (_req, res) => res.json(getCollection<WebhookDelivery>(KEYS.webhookDeliveries)));
+
+apiRouter.post("/dev/webhook-deliveries/:id/redeliver", (req, res) => {
+  const now = new Date().toISOString();
+  setCollection(
+    KEYS.webhookDeliveries,
+    getCollection<WebhookDelivery>(KEYS.webhookDeliveries).map((d) =>
+      d.id === req.params.id ? { ...d, status: "success" as const, statusCode: 200, attempts: d.attempts + 1, at: now } : d,
+    ),
+  );
   res.json({ ok: true });
 });
 

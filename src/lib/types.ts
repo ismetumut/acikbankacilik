@@ -332,6 +332,46 @@ export interface Subscription {
   createdAt: string;
 }
 
+/* --------------------------------------------------- geliştirici platformu */
+
+export type ApiEnvironment = "sandbox" | "production";
+
+export interface ApiKey {
+  id: string;
+  name: string;
+  prefix: string; // maskeli önek, ör. "ak_live_a1b2••••"
+  environment: ApiEnvironment;
+  scopes: string[];
+  createdAt: string;
+  lastUsed?: string;
+  revoked?: boolean;
+}
+
+export type WebhookEvent =
+  | "payment.completed"
+  | "payment.rejected"
+  | "collection.paid"
+  | "consent.expiring"
+  | "reconciliation.matched";
+
+export interface WebhookSubscription {
+  id: string;
+  url: string;
+  events: WebhookEvent[];
+  secretMasked: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface WebhookDelivery {
+  id: string;
+  event: WebhookEvent;
+  status: "success" | "failed" | "pending";
+  statusCode?: number;
+  attempts: number;
+  at: string;
+}
+
 /** POS hakediş / settlement partisi — kart tahsilatları T+1 toplu hesaba geçer. */
 export interface SettlementBatch {
   id: string;

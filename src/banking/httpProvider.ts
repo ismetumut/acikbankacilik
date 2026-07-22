@@ -27,17 +27,22 @@ import type {
   SanctionsResult,
   SettlementBatch,
   Subscription,
+  ApiKey,
+  WebhookDelivery,
+  WebhookSubscription,
 } from "@/lib/types";
 import { api } from "@/lib/api";
 import type {
   BankingProvider,
   CardPaymentInput,
   CardPaymentResult,
+  NewApiKeyInput,
   NewPayByBankInput,
   NewPaymentInput,
   NewPaymentLinkInput,
   NewRecurringInput,
   NewSubscriptionInput,
+  NewWebhookInput,
   PaymentBatchInput,
   TransactionPage,
   TransactionQuery,
@@ -209,6 +214,34 @@ export class HttpBankingProvider implements BankingProvider {
 
   getClients(): Promise<ClientSummary[]> {
     return api<ClientSummary[]>("/clients");
+  }
+
+  getApiKeys(): Promise<ApiKey[]> {
+    return api<ApiKey[]>("/dev/api-keys");
+  }
+  createApiKey(input: NewApiKeyInput): Promise<{ key: ApiKey; secret: string }> {
+    return api<{ key: ApiKey; secret: string }>("/dev/api-keys", { method: "POST", body: input });
+  }
+  async revokeApiKey(id: string): Promise<void> {
+    await api(`/dev/api-keys/${id}/revoke`, { method: "POST" });
+  }
+  getWebhooks(): Promise<WebhookSubscription[]> {
+    return api<WebhookSubscription[]>("/dev/webhooks");
+  }
+  createWebhook(input: NewWebhookInput): Promise<WebhookSubscription> {
+    return api<WebhookSubscription>("/dev/webhooks", { method: "POST", body: input });
+  }
+  async setWebhookActive(id: string, active: boolean): Promise<void> {
+    await api(`/dev/webhooks/${id}/active`, { method: "POST", body: { active } });
+  }
+  async deleteWebhook(id: string): Promise<void> {
+    await api(`/dev/webhooks/${id}`, { method: "DELETE" });
+  }
+  getWebhookDeliveries(): Promise<WebhookDelivery[]> {
+    return api<WebhookDelivery[]>("/dev/webhook-deliveries");
+  }
+  async redeliverWebhook(id: string): Promise<void> {
+    await api(`/dev/webhook-deliveries/${id}/redeliver`, { method: "POST" });
   }
 
   getNotificationSettings(): Promise<NotificationSetting[]> {
