@@ -28,6 +28,7 @@ import {
 import { confirmPayee, simulateStatus, toLegacyStatus } from "../../src/lib/pis";
 import { nextRunDate } from "../../src/lib/recurring";
 import { computeIncomeInsights } from "../../src/lib/insights";
+import { screenSanctions } from "../../src/lib/risk";
 import { getCollection, setCollection, findUserByEmail } from "./db";
 import { KEYS } from "./seed";
 import { requireAuth, signToken, verifyPassword, type AuthedRequest } from "./auth";
@@ -519,6 +520,15 @@ apiRouter.post("/reconciliation/:id/match", (req, res) => {
   const remaining = getCollection<ReconciliationException>(KEYS.reconciliation).filter((e) => e.id !== req.params.id);
   setCollection(KEYS.reconciliation, remaining);
   res.json({ ok: true });
+});
+
+/* --------------------------------------------------- settlement & uyum ---- */
+
+apiRouter.get("/settlements", (_req, res) => res.json(getCollection(KEYS.settlements)));
+
+apiRouter.post("/compliance/screen", (req, res) => {
+  const { name } = (req.body ?? {}) as { name?: string };
+  res.json(screenSanctions(name ?? ""));
 });
 
 /* ----------------------------------------------------------------- ais ---- */

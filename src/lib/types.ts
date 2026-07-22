@@ -332,6 +332,35 @@ export interface Subscription {
   createdAt: string;
 }
 
+/** POS hakediş / settlement partisi — kart tahsilatları T+1 toplu hesaba geçer. */
+export interface SettlementBatch {
+  id: string;
+  bankId: BankId;
+  valueDate: string; // ISO — hesaba geçtiği/geçeceği gün
+  txnCount: number;
+  gross: number;
+  commission: number;
+  net: number;
+  status: "pending" | "settled";
+  bankMatched: boolean; // banka ekstresiyle mutabık mı
+}
+
+/** Yaptırım / PEP taraması sonucu. */
+export interface SanctionsResult {
+  outcome: "clear" | "review" | "hit";
+  matchedList?: string; // eşleşen liste (OFAC, EU, BM, PEP)
+  reason: string;
+}
+
+export type RiskLevel = "low" | "medium" | "high";
+
+/** Ödeme risk skoru — tutar, yeni alıcı, saat, yaptırım sinyalleriyle. */
+export interface PaymentRisk {
+  score: number; // 0-100
+  level: RiskLevel;
+  reasons: string[];
+}
+
 export interface OverdueReceivable {
   id: string;
   customer: string;

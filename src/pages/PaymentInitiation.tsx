@@ -12,8 +12,15 @@ import { LoadingRows } from "@/components/ui/Skeleton";
 import { formatCurrency } from "@/lib/format";
 import { COMPANY, CURRENCY_SYMBOLS, ERP_CARI_LIST, TEAM_MEMBERS } from "@/lib/mockData";
 import { PIS_STATUS_META } from "@/lib/pis";
+import { computePaymentRisk } from "@/lib/risk";
 import type { ApprovalChainInput, PaymentLineInput } from "@/banking/provider";
-import type { ApprovalStep, CopResult, PisStatus } from "@/lib/types";
+import type { ApprovalStep, CopResult, PisStatus, SanctionsResult } from "@/lib/types";
+
+const RISK_META: Record<"low" | "medium" | "high", { label: string; tone: "positive" | "warning" | "negative" }> = {
+  low: { label: "Düşük risk", tone: "positive" },
+  medium: { label: "Orta risk", tone: "warning" },
+  high: { label: "Yüksek risk", tone: "negative" },
+};
 
 function pisBadgeTone(s: PisStatus): "positive" | "negative" | "warning" {
   if (s === "completed") return "positive";
@@ -69,6 +76,7 @@ export function PaymentInitiation() {
   const [submitting, setSubmitting] = useState(false);
   const [decidingId, setDecidingId] = useState<string | null>(null);
   const [copChecks, setCopChecks] = useState<{ recipient: string; result: CopResult }[]>([]);
+  const [sanctionsHits, setSanctionsHits] = useState<{ recipient: string; result: SanctionsResult }[]>([]);
 
   const baseTodayTotal = 214_300;
   const triggeredJustNow = payments?.filter((p) => p.time === "şimdi").reduce((s, p) => s + p.amount, 0) ?? 0;
@@ -128,6 +136,18 @@ export function PaymentInitiation() {
         channel: l.channel,
       };
     });
+
+    // Yaptırım / PEP taraması (KYC-AML): eşleşme varsa ödeme sert şekilde durdurulur.
+    const screenings = await Promise.all(
+      lineInputs.map(async (l) => ({ recipient: l.recipient, result: await banking.screenPayee(l.recipient) })),
+    );
+    const hits = screenings.filter((s) => s.result.outcome === "hit");
+    if (hits.length > 0) {
+      setSanctionsHits(hits);
+      setSubmitting(false);
+      return;
+    }
+    setSanctionsHits([]);
 
     // Confirmation of Payee: göndermeden önce her satırda alıcı adı/IBAN doğrula.
     // İlk denemede uyuşmazlık varsa uyar ve dur; kullanıcı tekrar basınca (bilerek) devam.
@@ -294,10 +314,24 @@ export function PaymentInitiation() {
               </div>
             </div>
 
+            {sanctionsHits.length > 0 && (
+              <div className="rounded-xl border border-negative-700/40 bg-negative-100 p-3 text-xs text-negative-700">
+                <p className="mb-1.5 font-bold">⛔ Yaptırım taraması engeli — ödeme durduruldu</p>
+                <ul className="space-y-1">
+                  {sanctionsHits.map((h, i) => (
+                    <li key={i}>
+                      <span className="font-semibold">{h.recipient}</span>: {h.result.reason}
+                      {h.result.matchedList && <> · liste: {h.result.matchedList}</>}
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-1.5">Bu ödeme uyum gereği gönderilemez. Uyum ekibiyle görüşün.</p>
+              </div>
+            )}
             {copChecks.length === 0 ? (
               <div className="rounded-xl bg-brand-50 p-3 text-xs text-ink-900/80">
-                <span className="font-bold">Confirmation of Payee:</span> Onaya göndermeden önce her alıcının adı,
-                IBAN'ın gerçek hesap sahibiyle otomatik doğrulanır.
+                <span className="font-bold">Confirmation of Payee + yaptırım taraması:</span> Onaya göndermeden önce her
+                alıcı; adı/IBAN doğrulaması ve OFAC/EU/PEP yaptırım taramasından geçer.
               </div>
             ) : (
               <div className="rounded-xl border border-warning-700/30 bg-warning-100 p-3 text-xs text-warning-700">
@@ -350,16 +384,26 @@ export function PaymentInitiation() {
               <div className="space-y-3">
                 {approvals.map((a) => {
                   const nextStep = a.chain.find((s) => s.status === "Bekliyor");
+                  const risk = computePaymentRisk({ amount: a.amount, newPayee: a.risky });
                   return (
                     <div key={a.id} className="rounded-xl border border-line p-3">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
                           <p className="truncate text-sm font-bold text-ink-900">{a.title}</p>
-                          <p className="truncate text-xs text-muted">
-                            {a.subtitle} {a.risky && <span className="text-warning-700">⚠</span>}
-                          </p>
+                          <p className="truncate text-xs text-muted">{a.subtitle}</p>
                         </div>
                         <Money value={a.amount} size="sm" className="shrink-0 text-right" />
+                      </div>
+
+                      <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                        <Badge tone={RISK_META[risk.level].tone}>
+                          {RISK_META[risk.level].label} · {risk.score}
+                        </Badge>
+                        {risk.reasons.slice(0, 2).map((r, i) => (
+                          <span key={i} className="rounded-md bg-cream-100 px-1.5 py-0.5 text-[10px] font-semibold text-ink-900/70">
+                            {r}
+                          </span>
+                        ))}
                       </div>
 
                       <ApprovalChainStepper chain={a.chain} />

@@ -5,10 +5,11 @@ import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
 import { StatTile } from "@/components/ui/StatTile";
 import { Button } from "@/components/ui/Button";
 import { Badge } from "@/components/ui/Badge";
+import { BankAvatar } from "@/components/ui/BankAvatar";
 import { Toggle } from "@/components/ui/Toggle";
 import { QrPreview } from "@/components/ui/QrPreview";
 import { LoadingRows } from "@/components/ui/Skeleton";
-import { formatCurrency } from "@/lib/format";
+import { formatCurrency, formatDate } from "@/lib/format";
 import { POS_COMMISSION, SAMPLE_CARDS, lookupBin } from "@/lib/mockData";
 import type { BadgeTone } from "@/components/ui/Badge";
 import type { CardPaymentResult } from "@/banking/provider";
@@ -46,6 +47,7 @@ export function Collections() {
   const { data: cardCollections, refetch: refetchCards } = useAsync(() => banking.getRecentCardCollections(), []);
   const { data: a2aRequests, refetch: refetchA2a } = useAsync(() => banking.getPayByBankRequests(), []);
   const { data: subscriptions, refetch: refetchSubs } = useAsync(() => banking.getSubscriptions(), []);
+  const { data: settlements } = useAsync(() => banking.getSettlements(), []);
 
   const [tab, setTab] = useState<"moto" | "link" | "a2a">("moto");
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -113,21 +115,43 @@ export function Collections() {
           </Card>
 
           <Card>
-            <CardTitle className="mb-3">Sanal POS · gün sonu</CardTitle>
-            <dl className="space-y-2.5 text-sm">
-              <div className="flex justify-between">
-                <dt className="text-muted">Kart tahsilatı (12 işlem)</dt>
-                <dd className="font-bold text-brand-500">+₺44.160</dd>
+            <CardHeader>
+              <CardTitle>Hakediş / settlement (T+1)</CardTitle>
+              <span className="text-xs text-muted">banka ekstresiyle mutabık</span>
+            </CardHeader>
+            {!settlements ? (
+              <LoadingRows rows={3} />
+            ) : (
+              <div className="divide-y divide-line">
+                {settlements.map((s) => (
+                  <div key={s.id} className="flex items-center justify-between gap-3 py-2.5">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <BankAvatar bankId={s.bankId} size="sm" />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-ink-900">
+                          {s.txnCount} işlem · brüt {formatCurrency(s.gross, { withDecimals: false })}
+                        </p>
+                        <p className="truncate text-xs text-muted">
+                          komisyon {formatCurrency(s.commission, { withDecimals: false })} · değer tarihi {formatDate(s.valueDate)}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <span className="text-sm font-bold tabular text-brand-500">
+                        {formatCurrency(s.net, { withDecimals: false })}
+                      </span>
+                      {s.status === "pending" ? (
+                        <Badge tone="warning">Bekliyor</Badge>
+                      ) : s.bankMatched ? (
+                        <Badge tone="positive">Mutabık ✓</Badge>
+                      ) : (
+                        <Badge tone="negative">Ekstre bekliyor</Badge>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <div className="flex justify-between">
-                <dt className="text-muted">Komisyon (%1,89)</dt>
-                <dd className="font-bold text-negative-700">−₺834</dd>
-              </div>
-              <div className="flex justify-between border-t border-line pt-2.5">
-                <dt className="font-semibold text-ink-900">Yarın hesaba geçecek</dt>
-                <dd className="font-bold text-ink-900">₺43.326</dd>
-              </div>
-            </dl>
+            )}
           </Card>
         </div>
 

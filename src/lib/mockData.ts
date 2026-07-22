@@ -26,6 +26,7 @@ import type {
   RecentPayment,
   RecurringPayment,
   ReportPackage,
+  SettlementBatch,
   Transaction,
   TransactionCategory,
 } from "./types";
@@ -945,6 +946,14 @@ export const SUBSCRIPTIONS: Subscription[] = [
   { id: "sub-1", customer: "Delta Elektrik", planLabel: "Aylık bakım paketi", amount: 4_500, frequency: "monthly", status: "active", method: "a2a", mandateRef: "VRP-DLT-0091", nextCharge: daysAgoIso(-6, 9), collectedCount: 8, createdAt: daysAgoIso(240) },
   { id: "sub-2", customer: "Mert Nakliyat", planLabel: "Haftalık lojistik hizmeti", amount: 2_800, frequency: "weekly", status: "active", method: "a2a", mandateRef: "VRP-MRT-0148", nextCharge: daysAgoIso(-2, 9), collectedCount: 22, createdAt: daysAgoIso(160) },
   { id: "sub-3", customer: "Anadolu Ambalaj", planLabel: "Premium destek", amount: 1_200, frequency: "monthly", status: "paused", method: "card", mandateRef: "DD-ANA-0203", nextCharge: daysAgoIso(-12, 9), collectedCount: 5, createdAt: daysAgoIso(150) },
+];
+
+/** POS hakediş / settlement partileri — kart tahsilatları T+1 hesaba geçer. */
+export const SETTLEMENT_BATCHES: SettlementBatch[] = [
+  { id: "set-1", bankId: "ziraat", valueDate: daysAgoIso(-1, 10), txnCount: 12, gross: 44_160, commission: 834, net: 43_326, status: "pending", bankMatched: false },
+  { id: "set-2", bankId: "garanti", valueDate: daysAgoIso(0, 10), txnCount: 8, gross: 61_400, commission: 1_160, net: 60_240, status: "settled", bankMatched: true },
+  { id: "set-3", bankId: "isbankasi", valueDate: daysAgoIso(1, 10), txnCount: 5, gross: 18_900, commission: 357, net: 18_543, status: "settled", bankMatched: true },
+  { id: "set-4", bankId: "yapikredi", valueDate: daysAgoIso(2, 10), txnCount: 9, gross: 33_720, commission: 690, net: 33_030, status: "settled", bankMatched: false },
 ];
 
 /** Bankada kayıtlı lehdarlar (saved payees) — AIS ile okunur. */

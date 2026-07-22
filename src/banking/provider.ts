@@ -17,6 +17,8 @@ import type {
   ErpMapping,
   ExpectedCashItem,
   PayByBankRequest,
+  SanctionsResult,
+  SettlementBatch,
   Subscription,
   NotificationSetting,
   OverdueReceivable,
@@ -202,6 +204,11 @@ export interface BankingProvider {
   createSubscription(input: NewSubscriptionInput): Promise<Subscription>;
   chargeSubscriptionNow(id: string): Promise<void>;
   setSubscriptionStatus(id: string, status: "active" | "paused" | "canceled"): Promise<void>;
+
+  // Hakediş / settlement (T+1) + uyum
+  getSettlements(): Promise<SettlementBatch[]>;
+  /** Yaptırım / PEP taraması (KYC-AML). */
+  screenPayee(name: string): Promise<SanctionsResult>;
 
   getReconciliationExceptions(): Promise<ReconciliationException[]>;
   matchReconciliation(exceptionId: string, candidateId: string): Promise<void>;

@@ -11,6 +11,7 @@ import {
   SUBSCRIPTIONS,
   BENEFICIARIES,
   DIRECT_DEBIT_MANDATES,
+  SETTLEMENT_BATCHES,
   CONSENTS,
   EXPECTED_INCOMING,
   EXPECTED_OUTGOING,
@@ -54,6 +55,7 @@ export const KEYS = {
   subscriptions: "subscriptions",
   beneficiaries: "beneficiaries",
   directDebits: "directDebits",
+  settlements: "settlements",
 } as const;
 
 /**
@@ -88,6 +90,7 @@ export function runSeed(): void {
     [KEYS.subscriptions]: SUBSCRIPTIONS,
     [KEYS.beneficiaries]: BENEFICIARIES,
     [KEYS.directDebits]: DIRECT_DEBIT_MANDATES,
+    [KEYS.settlements]: SETTLEMENT_BATCHES,
   };
 
   // Statik/türetilmiş koleksiyonlar (kullanıcı mutasyonu yok) her açılışta tazelenir,

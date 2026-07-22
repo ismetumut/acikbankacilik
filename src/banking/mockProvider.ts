@@ -23,6 +23,8 @@ import type {
   RecentPayment,
   RecurringPayment,
   ReportPackage,
+  SanctionsResult,
+  SettlementBatch,
   Subscription,
 } from "@/lib/types";
 import {
@@ -50,6 +52,7 @@ import {
   SUBSCRIPTIONS,
   BENEFICIARIES,
   DIRECT_DEBIT_MANDATES,
+  SETTLEMENT_BATCHES,
   ERP_CARI_LIST,
   ERP_INVOICES,
   REPORT_PACKAGES,
@@ -73,6 +76,7 @@ import type {
 import { confirmPayee, simulateStatus, toLegacyStatus } from "@/lib/pis";
 import { nextRunDate } from "@/lib/recurring";
 import { computeIncomeInsights } from "@/lib/insights";
+import { screenSanctions } from "@/lib/risk";
 
 /** Simulates realistic network latency for a mock/demo backend. */
 function delay<T>(value: T, ms = 220): Promise<T> {
@@ -110,6 +114,13 @@ export class MockBankingProvider implements BankingProvider {
   }
   async getIncomeInsights(): Promise<IncomeInsight> {
     return delay(computeIncomeInsights(transactions, CASH_FLOW_30D));
+  }
+
+  async getSettlements(): Promise<SettlementBatch[]> {
+    return delay([...SETTLEMENT_BATCHES]);
+  }
+  async screenPayee(name: string): Promise<SanctionsResult> {
+    return delay(screenSanctions(name), 350);
   }
 
   async getTransactions(query: TransactionQuery): Promise<TransactionPage> {

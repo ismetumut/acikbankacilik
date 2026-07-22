@@ -24,6 +24,8 @@ import type {
   RecentPayment,
   RecurringPayment,
   ReportPackage,
+  SanctionsResult,
+  SettlementBatch,
   Subscription,
 } from "@/lib/types";
 import { api } from "@/lib/api";
@@ -159,6 +161,13 @@ export class HttpBankingProvider implements BankingProvider {
   }
   getIncomeInsights(companyId?: string): Promise<IncomeInsight> {
     return api<IncomeInsight>("/insights/income", { query: companyId ? { companyId } : undefined });
+  }
+
+  getSettlements(): Promise<SettlementBatch[]> {
+    return api<SettlementBatch[]>("/settlements");
+  }
+  screenPayee(name: string): Promise<SanctionsResult> {
+    return api<SanctionsResult>("/compliance/screen", { method: "POST", body: { name } });
   }
 
   getReconciliationExceptions(): Promise<ReconciliationException[]> {
