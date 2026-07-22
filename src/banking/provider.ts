@@ -6,6 +6,7 @@ import type {
   AssistantExchange,
   BankId,
   Beneficiary,
+  ConnectableBank,
   DirectDebitMandate,
   IncomeInsight,
   WebhookDelivery,
@@ -180,6 +181,11 @@ export interface BankingProvider {
 
   getConsents(): Promise<ConsentGrant[]>;
   renewConsent(bankId: BankId): Promise<void>;
+
+  // Kapsam: BKM geçidi banka kataloğu + SCA ile bağlama
+  getBankCatalog(): Promise<ConnectableBank[]>;
+  /** Banka bağlar (SCA/redirect yolculuğu tamamlanınca). */
+  connectBank(id: string): Promise<void>;
 
   getPendingApprovals(): Promise<PendingApproval[]>;
   /** Advances the next pending step in the approval chain (approve), or removes the request (reject). */

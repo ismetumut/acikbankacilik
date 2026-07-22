@@ -10,6 +10,7 @@ import type {
   CashFlowPoint,
   ClientSummary,
   Company,
+  ConnectableBank,
   ConsentGrant,
   Currency,
   Beneficiary,
@@ -949,6 +950,22 @@ export const SUBSCRIPTIONS: Subscription[] = [
   { id: "sub-1", customer: "Delta Elektrik", planLabel: "Aylık bakım paketi", amount: 4_500, frequency: "monthly", status: "active", method: "a2a", mandateRef: "VRP-DLT-0091", nextCharge: daysAgoIso(-6, 9), collectedCount: 8, createdAt: daysAgoIso(240) },
   { id: "sub-2", customer: "Mert Nakliyat", planLabel: "Haftalık lojistik hizmeti", amount: 2_800, frequency: "weekly", status: "active", method: "a2a", mandateRef: "VRP-MRT-0148", nextCharge: daysAgoIso(-2, 9), collectedCount: 22, createdAt: daysAgoIso(160) },
   { id: "sub-3", customer: "Anadolu Ambalaj", planLabel: "Premium destek", amount: 1_200, frequency: "monthly", status: "paused", method: "card", mandateRef: "DD-ANA-0203", nextCharge: daysAgoIso(-12, 9), collectedCount: 5, createdAt: daysAgoIso(150) },
+];
+
+/** BKM Açık Bankacılık geçidi üzerinden bağlanabilir bankalar kataloğu. */
+export const BANK_CATALOG: ConnectableBank[] = [
+  { id: "ziraat", name: "Ziraat Bankası", initials: "Z", colorHex: "#B4231E", connected: true, viaBkm: true },
+  { id: "isbankasi", name: "Türkiye İş Bankası", initials: "İŞ", colorHex: "#1B2A63", connected: true, viaBkm: true },
+  { id: "garanti", name: "Garanti BBVA", initials: "G", colorHex: "#0C6B41", connected: true, viaBkm: true },
+  { id: "yapikredi", name: "Yapı Kredi", initials: "YK", colorHex: "#1E3A6E", connected: true, viaBkm: true },
+  { id: "akbank", name: "Akbank", initials: "AK", colorHex: "#B4231E", connected: false, viaBkm: true },
+  { id: "qnb", name: "QNB", initials: "QNB", colorHex: "#7A2230", connected: false, viaBkm: true },
+  { id: "denizbank", name: "DenizBank", initials: "DB", colorHex: "#005AA0", connected: false, viaBkm: true },
+  { id: "vakifbank", name: "VakıfBank", initials: "VB", colorHex: "#F6A800", connected: false, viaBkm: true },
+  { id: "halkbank", name: "Halkbank", initials: "HB", colorHex: "#005BAA", connected: false, viaBkm: true },
+  { id: "teb", name: "TEB", initials: "TEB", colorHex: "#00983A", connected: false, viaBkm: true },
+  { id: "ingbank", name: "ING", initials: "ING", colorHex: "#FF6200", connected: false, viaBkm: true },
+  { id: "enpara", name: "Enpara.com", initials: "EN", colorHex: "#7A2230", connected: false, viaBkm: true },
 ];
 
 /** Geliştirici API anahtarları. */

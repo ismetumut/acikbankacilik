@@ -4,6 +4,7 @@ import type {
   BankId,
   Beneficiary,
   CardCollection,
+  ConnectableBank,
   DirectDebitMandate,
   IncomeInsight,
   CashFlowForecastPoint,
@@ -77,6 +78,12 @@ export class HttpBankingProvider implements BankingProvider {
   }
   async renewConsent(bankId: BankId): Promise<void> {
     await api(`/consents/${bankId}/renew`, { method: "POST" });
+  }
+  getBankCatalog(): Promise<ConnectableBank[]> {
+    return api<ConnectableBank[]>("/bank-catalog");
+  }
+  async connectBank(id: string): Promise<void> {
+    await api(`/bank-catalog/${id}/connect`, { method: "POST" });
   }
 
   getPendingApprovals(): Promise<PendingApproval[]> {

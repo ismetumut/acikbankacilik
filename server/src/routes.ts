@@ -5,6 +5,7 @@ import type {
   AssistantExchange,
   CardCollection,
   CashFlowPoint,
+  ConnectableBank,
   WebhookDelivery,
   WebhookSubscription,
   ConsentGrant,
@@ -522,6 +523,18 @@ apiRouter.get("/reconciliation", (_req, res) =>
 apiRouter.post("/reconciliation/:id/match", (req, res) => {
   const remaining = getCollection<ReconciliationException>(KEYS.reconciliation).filter((e) => e.id !== req.params.id);
   setCollection(KEYS.reconciliation, remaining);
+  res.json({ ok: true });
+});
+
+/* ------------------------------------------------------------ bank catalog */
+
+apiRouter.get("/bank-catalog", (_req, res) => res.json(getCollection<ConnectableBank>(KEYS.bankCatalog)));
+
+apiRouter.post("/bank-catalog/:id/connect", (req, res) => {
+  setCollection(
+    KEYS.bankCatalog,
+    getCollection<ConnectableBank>(KEYS.bankCatalog).map((b) => (b.id === req.params.id ? { ...b, connected: true } : b)),
+  );
   res.json({ ok: true });
 });
 

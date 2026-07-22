@@ -15,6 +15,7 @@ import {
   API_KEYS,
   WEBHOOK_SUBSCRIPTIONS,
   WEBHOOK_DELIVERIES,
+  BANK_CATALOG,
   CONSENTS,
   EXPECTED_INCOMING,
   EXPECTED_OUTGOING,
@@ -62,6 +63,7 @@ export const KEYS = {
   apiKeys: "apiKeys",
   webhooks: "webhooks",
   webhookDeliveries: "webhookDeliveries",
+  bankCatalog: "bankCatalog",
 } as const;
 
 /**
@@ -100,6 +102,7 @@ export function runSeed(): void {
     [KEYS.apiKeys]: API_KEYS,
     [KEYS.webhooks]: WEBHOOK_SUBSCRIPTIONS,
     [KEYS.webhookDeliveries]: WEBHOOK_DELIVERIES,
+    [KEYS.bankCatalog]: BANK_CATALOG,
   };
 
   // Statik/türetilmiş koleksiyonlar (kullanıcı mutasyonu yok) her açılışta tazelenir,

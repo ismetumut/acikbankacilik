@@ -5,6 +5,7 @@ import type {
   BankId,
   Beneficiary,
   CardCollection,
+  ConnectableBank,
   DirectDebitMandate,
   IncomeInsight,
   WebhookDelivery,
@@ -59,6 +60,7 @@ import {
   API_KEYS,
   WEBHOOK_SUBSCRIPTIONS,
   WEBHOOK_DELIVERIES,
+  BANK_CATALOG,
   ERP_CARI_LIST,
   ERP_INVOICES,
   REPORT_PACKAGES,
@@ -107,6 +109,7 @@ let subscriptions = [...SUBSCRIPTIONS];
 let apiKeys = [...API_KEYS];
 let webhooks = [...WEBHOOK_SUBSCRIPTIONS];
 let webhookDeliveries = [...WEBHOOK_DELIVERIES];
+let bankCatalog = [...BANK_CATALOG];
 let reportPackages = [...REPORT_PACKAGES];
 let notificationSettings = [...NOTIFICATION_SETTINGS];
 let assistantHistory = [...ASSISTANT_HISTORY];
@@ -228,6 +231,14 @@ export class MockBankingProvider implements BankingProvider {
         : c,
     );
     await delay(undefined, 400);
+  }
+
+  async getBankCatalog(): Promise<ConnectableBank[]> {
+    return delay([...bankCatalog]);
+  }
+  async connectBank(id: string): Promise<void> {
+    bankCatalog = bankCatalog.map((b) => (b.id === id ? { ...b, connected: true } : b));
+    await delay(undefined, 300);
   }
 
   async getPendingApprovals(): Promise<PendingApproval[]> {

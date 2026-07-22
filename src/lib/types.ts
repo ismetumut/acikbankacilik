@@ -332,6 +332,16 @@ export interface Subscription {
   createdAt: string;
 }
 
+/** BKM Açık Bankacılık geçidi üzerinden bağlanabilir banka. */
+export interface ConnectableBank {
+  id: string;
+  name: string;
+  initials: string;
+  colorHex: string;
+  connected: boolean;
+  viaBkm: boolean; // BKM API geçidi üzerinden mi
+}
+
 /* --------------------------------------------------- geliştirici platformu */
 
 export type ApiEnvironment = "sandbox" | "production";
