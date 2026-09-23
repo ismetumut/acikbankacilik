@@ -333,6 +333,14 @@ export interface Subscription {
 }
 
 /** Kurulum sihirbazındaki ürün (banka başvurusu gereken hizmet). */
+/** Netekstre için gerçek banka başvuru formu (indirilebilir resmi belge). */
+export interface NetekstreBank {
+  id: string;
+  name: string;
+  formFile: string; // public/ altındaki gerçek form dosyası
+  format: "DOCX" | "DOC" | "PDF" | "XLS" | "XLSX";
+}
+
 export interface OnboardingProduct {
   id: string;
   name: string;

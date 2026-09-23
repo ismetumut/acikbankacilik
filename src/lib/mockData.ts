@@ -19,6 +19,7 @@ import type {
   ErpCari,
   ErpInvoice,
   ExpectedCashItem,
+  NetekstreBank,
   NotificationSetting,
   OnboardingProduct,
   OverdueReceivable,
@@ -958,14 +959,49 @@ export const SUBSCRIPTIONS: Subscription[] = [
  * Finrota ürün ailesi — kurulum sihirbazında her ürün için banka başvurusu (IP yetkilendirme)
  * gerekir. Her ürünün bankayla veri/işlem akışı farklıdır.
  */
-export const PROVIDER_NAME = "Finrota";
+// Finrota ürünlerini işleten tüzel kişilik (banka formlarında bu unvan geçer).
+export const PROVIDER_NAME = "Eçözüm Bilgi Teknolojileri A.Ş.";
+export const PROVIDER_BRAND = "Finrota";
 
-/** Bankaların veri paylaşımı için beyaz listeye alması gereken Finrota erişim IP'leri. */
+/** Bankaların beyaz listeye alması gereken gerçek Eçözüm statik IP'leri (banka formlarından). */
 export const FINROTA_ACCESS_IPS = [
-  "185.68.190.16/28 (Birincil VeriMerkezi)",
-  "185.68.190.34",
-  "212.156.44.208/29 (Yedek VeriMerkezi)",
-  "212.156.44.216",
+  "37.205.0.49",
+  "89.106.8.112",
+  "95.70.194.4",
+  "95.70.196.60",
+  "195.175.206.106",
+  "37.205.0.128",
+];
+
+/** Netekstre — 27 banka için gerçek başvuru formları (public/forms/netekstre altında). */
+export const NETEKSTRE_BANKS: NetekstreBank[] = [
+  { id: "ziraat", name: "Ziraat Bankası", formFile: "forms/netekstre/ziraat.docx", format: "DOCX" },
+  { id: "isbankasi", name: "Türkiye İş Bankası", formFile: "forms/netekstre/isbankasi.docx", format: "DOCX" },
+  { id: "garanti", name: "Garanti BBVA", formFile: "forms/netekstre/garanti.doc", format: "DOC" },
+  { id: "yapikredi", name: "Yapı Kredi", formFile: "forms/netekstre/yapikredi.xlsx", format: "XLSX" },
+  { id: "akbank", name: "Akbank", formFile: "forms/netekstre/akbank.xls", format: "XLS" },
+  { id: "qnb", name: "QNB", formFile: "forms/netekstre/qnb.docx", format: "DOCX" },
+  { id: "denizbank", name: "DenizBank", formFile: "forms/netekstre/denizbank.docx", format: "DOCX" },
+  { id: "vakifbank", name: "VakıfBank", formFile: "forms/netekstre/vakifbank.pdf", format: "PDF" },
+  { id: "halkbank", name: "Halkbank", formFile: "forms/netekstre/halkbank.docx", format: "DOCX" },
+  { id: "teb", name: "TEB", formFile: "forms/netekstre/teb.docx", format: "DOCX" },
+  { id: "ing", name: "ING", formFile: "forms/netekstre/ing.docx", format: "DOCX" },
+  { id: "sekerbank", name: "Şekerbank", formFile: "forms/netekstre/sekerbank.xls", format: "XLS" },
+  { id: "fibabanka", name: "Fibabanka", formFile: "forms/netekstre/fibabanka.docx", format: "DOCX" },
+  { id: "aktifbank", name: "Aktif Bank", formFile: "forms/netekstre/aktifbank.docx", format: "DOCX" },
+  { id: "odeabank", name: "Odea Bank", formFile: "forms/netekstre/odeabank.docx", format: "DOCX" },
+  { id: "alternatifbank", name: "Alternatif Bank", formFile: "forms/netekstre/alternatifbank.docx", format: "DOCX" },
+  { id: "anadolubank", name: "Anadolubank", formFile: "forms/netekstre/anadolubank.docx", format: "DOCX" },
+  { id: "burganbank", name: "Burgan Bank", formFile: "forms/netekstre/burganbank.docx", format: "DOCX" },
+  { id: "turklandbank", name: "T-Bank (Turkland)", formFile: "forms/netekstre/turklandbank.docx", format: "DOCX" },
+  { id: "hsbc", name: "HSBC", formFile: "forms/netekstre/hsbc.docx", format: "DOCX" },
+  { id: "hayatfinans", name: "Hayat Finans", formFile: "forms/netekstre/hayatfinans.pdf", format: "PDF" },
+  { id: "kuveytturk", name: "Kuveyt Türk", formFile: "forms/netekstre/kuveytturk.docx", format: "DOCX" },
+  { id: "albaraka", name: "Albaraka Türk", formFile: "forms/netekstre/albaraka.docx", format: "DOCX" },
+  { id: "turkiyefinans", name: "Türkiye Finans", formFile: "forms/netekstre/turkiyefinans.doc", format: "DOC" },
+  { id: "emlakkatilim", name: "Emlak Katılım", formFile: "forms/netekstre/emlakkatilim.xlsx", format: "XLSX" },
+  { id: "vakifkatilim", name: "Vakıf Katılım", formFile: "forms/netekstre/vakifkatilim.docx", format: "DOCX" },
+  { id: "ziraatkatilim", name: "Ziraat Katılım", formFile: "forms/netekstre/ziraatkatilim.pdf", format: "PDF" },
 ];
 
 export const ONBOARDING_PRODUCTS: OnboardingProduct[] = [
