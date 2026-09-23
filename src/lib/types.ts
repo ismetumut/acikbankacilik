@@ -332,6 +332,40 @@ export interface Subscription {
   createdAt: string;
 }
 
+/** Kurulum sihirbazındaki ürün (banka başvurusu gereken hizmet). */
+export interface OnboardingProduct {
+  id: string;
+  name: string;
+  code: string; // form kodu eki, ör. "AIS"
+  direction: "veri" | "odeme" | "tahsilat";
+  scope: string; // bankadan talep edilen erişim özeti
+  dataDetail: string; // hangi alanlar/işlemler
+}
+
+/** Bir bankanın başvuru kanalı bilgileri (12 banka). */
+export interface BankApplicationInfo {
+  bankId: string;
+  bankName: string;
+  initials: string;
+  colorHex: string;
+  formCodePrefix: string;
+  channel: string;
+  applyTo: string; // KEP / başvuru adresi
+  processDays: string;
+  cautions: string[];
+}
+
+/** Bir (banka × ürün) başvurusunun durumu — doldur, gönder, bekle. */
+export interface OnboardingApplication {
+  id: string;
+  bankId: string;
+  productId: string;
+  status: "draft" | "sent" | "approved";
+  company: string;
+  createdAt: string;
+  sentAt?: string;
+}
+
 /** BKM Açık Bankacılık geçidi üzerinden bağlanabilir banka. */
 export interface ConnectableBank {
   id: string;

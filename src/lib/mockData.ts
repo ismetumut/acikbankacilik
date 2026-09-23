@@ -1,6 +1,7 @@
 import type {
   Account,
   ApiKey,
+  BankApplicationInfo,
   AssistantExchange,
   Bank,
   BankId,
@@ -19,6 +20,7 @@ import type {
   ErpInvoice,
   ExpectedCashItem,
   NotificationSetting,
+  OnboardingProduct,
   OverdueReceivable,
   PayByBankRequest,
   PaymentLink,
@@ -952,6 +954,96 @@ export const SUBSCRIPTIONS: Subscription[] = [
   { id: "sub-3", customer: "Anadolu Ambalaj", planLabel: "Premium destek", amount: 1_200, frequency: "monthly", status: "paused", method: "card", mandateRef: "DD-ANA-0203", nextCharge: daysAgoIso(-12, 9), collectedCount: 5, createdAt: daysAgoIso(150) },
 ];
 
+/**
+ * Finrota ürün ailesi — kurulum sihirbazında her ürün için banka başvurusu (IP yetkilendirme)
+ * gerekir. Her ürünün bankayla veri/işlem akışı farklıdır.
+ */
+export const PROVIDER_NAME = "Finrota";
+
+/** Bankaların veri paylaşımı için beyaz listeye alması gereken Finrota erişim IP'leri. */
+export const FINROTA_ACCESS_IPS = [
+  "185.68.190.16/28 (Birincil VeriMerkezi)",
+  "185.68.190.34",
+  "212.156.44.208/29 (Yedek VeriMerkezi)",
+  "212.156.44.216",
+];
+
+export const ONBOARDING_PRODUCTS: OnboardingProduct[] = [
+  {
+    id: "netekstre",
+    name: "Netekstre",
+    code: "NETEKSTRE",
+    direction: "veri",
+    scope: "Banka hesap ekstresi ve hesap hareketlerinin otomatik toplanması",
+    dataDetail: "IBAN, bakiye, işlem tarihi/tutarı/açıklaması, MT940 / CAMT.053 ekstre",
+  },
+  {
+    id: "posrapor",
+    name: "Posrapor",
+    code: "POSRAPOR",
+    direction: "veri",
+    scope: "POS işlem, hakediş ve komisyon verilerinin toplanması",
+    dataDetail: "Üye işyeri işlemleri, taksit, komisyon, hakediş/valör tarihleri",
+  },
+  {
+    id: "netahsilat",
+    name: "Netahsilat",
+    code: "NETAHSILAT",
+    direction: "tahsilat",
+    scope: "Sanal POS / online tahsilat ve 'banka ile öde' entegrasyonu",
+    dataDetail: "Sanal POS tanımı, tahsilat işlemi, iade/iptal, ödeme teyidi",
+  },
+  {
+    id: "edbs",
+    name: "E-DBS (Doğrudan Borçlandırma)",
+    code: "E_DBS",
+    direction: "tahsilat",
+    scope: "Doğrudan Borçlandırma Sistemi ile bayi/alt-bayi otomatik tahsilatı",
+    dataDetail: "DBS limit/talimat kaydı, tahsilat talebi, mutabakat dosyası",
+  },
+  {
+    id: "tos",
+    name: "TÖS (Tahsilat/Ödeme Sistemi)",
+    code: "TOS",
+    direction: "odeme",
+    scope: "Toplu ödeme ve ödeme emri başlatma yetkisi",
+    dataDetail: "Ödeme emri gönderimi, onay/durum sorgu, bakiye kontrolü",
+  },
+  {
+    id: "nap",
+    name: "NAP (Nakit Akış Planlama)",
+    code: "NAP",
+    direction: "veri",
+    scope: "Konsolide nakit pozisyonu ve nakit akış planlama verisi",
+    dataDetail: "Çok bankalı bakiye/hareket, vade ve tahmin girdileri",
+  },
+];
+
+const BANK_APPLY_DETAILS: Record<
+  string,
+  { channel: string; applyTo: string; processDays: string; cautions: string[] }
+> = {
+  ziraat: { channel: "Kurumsal İnternet Şubesi › Başvurular veya şube", applyTo: "ziraatbankasi@hs01.kep.tr", processDays: "2–3 iş günü", cautions: ["Ödeme (TÖS) yetkisi için şube ek risk onay formu talep eder."] },
+  isbankasi: { channel: "İşCep Kurumsal › Başvurular veya KEP", applyTo: "isbankasi@hs03.kep.tr", processDays: "1–2 iş günü", cautions: ["Form PDF/A ve e-imzalı olmalı; talep edilen IBAN'lar aynı VKN'ye bağlı olmalıdır."] },
+  garanti: { channel: "KEP (zorunlu) — ıslak imzalı form taranıp gönderilir", applyTo: "garantibbva@hs02.kep.tr", processDays: "3–4 iş günü", cautions: ["Yalnızca KEP kabul edilir; muvafakatname ayrıca imzalanıp imza sirküleri eklenmelidir."] },
+  yapikredi: { channel: "Şube randevusu (elden teslim)", applyTo: "yapikredi@hs01.kep.tr", processDays: "2–3 iş günü", cautions: ["Şube randevusu gerekir; formun aslı elden teslim edilir, imza yetkilisi bizzat katılır."] },
+  akbank: { channel: "Akbank Kurumsal › Dijital Servisler veya KEP", applyTo: "akbank@hs01.kep.tr", processDays: "2–3 iş günü", cautions: ["Web servis yetkisi için ayrıca teknik entegrasyon formu istenir."] },
+  qnb: { channel: "QNB Kurumsal İnternet › Başvurular veya KEP", applyTo: "qnbfinansbank@hs03.kep.tr", processDays: "2–4 iş günü", cautions: ["Enpara hesapları QNB tüzel yapısı altında değerlendirilir."] },
+  denizbank: { channel: "DenizBank Kurumsal › AçıkBanka veya KEP", applyTo: "denizbank@hs02.kep.tr", processDays: "2–3 iş günü", cautions: ["IP beyaz liste talebi teknik ekip onayından geçer."] },
+  vakifbank: { channel: "VakıfBank Kurumsal İnternet › Başvurular", applyTo: "vakifbank@hs01.kep.tr", processDays: "3–4 iş günü", cautions: ["Kamu prosedürü nedeniyle işlem süresi uzayabilir."] },
+  halkbank: { channel: "Halkbank Kurumsal › Başvurular veya şube", applyTo: "halkbank@hs01.kep.tr", processDays: "3–5 iş günü", cautions: ["Şube müdürü ek onayı gerekebilir."] },
+  teb: { channel: "TEB Kurumsal › Dijital Servisler veya KEP", applyTo: "teb@hs03.kep.tr", processDays: "2–3 iş günü", cautions: ["Form ekinde imza sirküleri zorunludur."] },
+  ingbank: { channel: "ING Kurumsal › Başvurular veya KEP", applyTo: "ingbank@hs02.kep.tr", processDays: "2–4 iş günü", cautions: ["Web servis erişimi için ayrı sözleşme imzalanır."] },
+  enpara: { channel: "Enpara.com Şirketim › Destek talebi", applyTo: "qnbfinansbank@hs03.kep.tr", processDays: "3–4 iş günü", cautions: ["Enpara başvuruları QNB üzerinden yürütülür."] },
+};
+
+const DEFAULT_APPLY = {
+  channel: "Kurumsal internet şubesi veya KEP",
+  applyTo: "basvuru@banka.kep.tr",
+  processDays: "3–5 iş günü",
+  cautions: ["Başvuru kanalı için bankanızın kurumsal müşteri hattını teyit edin."],
+};
+
 /** BKM Açık Bankacılık geçidi üzerinden bağlanabilir bankalar kataloğu. */
 export const BANK_CATALOG: ConnectableBank[] = [
   { id: "ziraat", name: "Ziraat Bankası", initials: "Z", colorHex: "#B4231E", connected: true, viaBkm: true },
@@ -967,6 +1059,22 @@ export const BANK_CATALOG: ConnectableBank[] = [
   { id: "ingbank", name: "ING", initials: "ING", colorHex: "#FF6200", connected: false, viaBkm: true },
   { id: "enpara", name: "Enpara.com", initials: "EN", colorHex: "#7A2230", connected: false, viaBkm: true },
 ];
+
+/** 12 banka için başvuru kanalı bilgileri (katalog + kanal detayları). */
+export const BANK_APPLICATION_INFO: BankApplicationInfo[] = BANK_CATALOG.map((b) => {
+  const d = BANK_APPLY_DETAILS[b.id] ?? DEFAULT_APPLY;
+  return {
+    bankId: b.id,
+    bankName: b.name,
+    initials: b.initials,
+    colorHex: b.colorHex,
+    formCodePrefix: `FR-${b.id.toUpperCase()}`,
+    channel: d.channel,
+    applyTo: d.applyTo,
+    processDays: d.processDays,
+    cautions: d.cautions,
+  };
+});
 
 /** Geliştirici API anahtarları. */
 export const API_KEYS: ApiKey[] = [

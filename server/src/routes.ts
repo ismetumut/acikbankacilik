@@ -6,6 +6,7 @@ import type {
   CardCollection,
   CashFlowPoint,
   ConnectableBank,
+  OnboardingApplication,
   WebhookDelivery,
   WebhookSubscription,
   ConsentGrant,
@@ -524,6 +525,43 @@ apiRouter.post("/reconciliation/:id/match", (req, res) => {
   const remaining = getCollection<ReconciliationException>(KEYS.reconciliation).filter((e) => e.id !== req.params.id);
   setCollection(KEYS.reconciliation, remaining);
   res.json({ ok: true });
+});
+
+/* --------------------------------------------------- onboarding başvuruları */
+
+apiRouter.get("/onboarding/applications", (_req, res) =>
+  res.json(getCollection<OnboardingApplication>(KEYS.onboardingApplications)),
+);
+
+apiRouter.post("/onboarding/applications", (req, res) => {
+  const { bankId, productId, company, status } = (req.body ?? {}) as {
+    bankId?: string;
+    productId?: string;
+    company?: string;
+    status?: OnboardingApplication["status"];
+  };
+  const list = getCollection<OnboardingApplication>(KEYS.onboardingApplications);
+  const now = new Date().toISOString();
+  const existing = list.find((a) => a.bankId === bankId && a.productId === productId);
+  let saved: OnboardingApplication;
+  let next: OnboardingApplication[];
+  if (existing) {
+    saved = { ...existing, status: status ?? existing.status, sentAt: status === "sent" ? now : existing.sentAt };
+    next = list.map((a) => (a.id === existing.id ? saved : a));
+  } else {
+    saved = {
+      id: `app-${Date.now()}-${productId}`,
+      bankId: bankId ?? "",
+      productId: productId ?? "",
+      status: status ?? "draft",
+      company: company ?? "",
+      createdAt: now,
+      sentAt: status === "sent" ? now : undefined,
+    };
+    next = [saved, ...list];
+  }
+  setCollection(KEYS.onboardingApplications, next);
+  res.json(saved);
 });
 
 /* ------------------------------------------------------------ bank catalog */

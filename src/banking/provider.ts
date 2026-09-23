@@ -9,6 +9,7 @@ import type {
   ConnectableBank,
   DirectDebitMandate,
   IncomeInsight,
+  OnboardingApplication,
   WebhookDelivery,
   WebhookEvent,
   WebhookSubscription,
@@ -181,6 +182,10 @@ export interface BankingProvider {
 
   getConsents(): Promise<ConsentGrant[]>;
   renewConsent(bankId: BankId): Promise<void>;
+
+  // Kurulum sihirbazı: banka × ürün başvuru takibi (doldur/gönder/bekle)
+  getOnboardingApplications(): Promise<OnboardingApplication[]>;
+  saveOnboardingApplication(input: { bankId: string; productId: string; company: string; status: OnboardingApplication["status"] }): Promise<OnboardingApplication>;
 
   // Kapsam: BKM geçidi banka kataloğu + SCA ile bağlama
   getBankCatalog(): Promise<ConnectableBank[]>;

@@ -64,6 +64,7 @@ export const KEYS = {
   webhooks: "webhooks",
   webhookDeliveries: "webhookDeliveries",
   bankCatalog: "bankCatalog",
+  onboardingApplications: "onboardingApplications",
 } as const;
 
 /**
@@ -103,6 +104,7 @@ export function runSeed(): void {
     [KEYS.webhooks]: WEBHOOK_SUBSCRIPTIONS,
     [KEYS.webhookDeliveries]: WEBHOOK_DELIVERIES,
     [KEYS.bankCatalog]: BANK_CATALOG,
+    [KEYS.onboardingApplications]: [],
   };
 
   // Statik/türetilmiş koleksiyonlar (kullanıcı mutasyonu yok) her açılışta tazelenir,

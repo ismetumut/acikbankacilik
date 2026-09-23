@@ -8,6 +8,7 @@ import type {
   ConnectableBank,
   DirectDebitMandate,
   IncomeInsight,
+  OnboardingApplication,
   WebhookDelivery,
   WebhookSubscription,
   CashFlowForecastPoint,
@@ -110,6 +111,7 @@ let apiKeys = [...API_KEYS];
 let webhooks = [...WEBHOOK_SUBSCRIPTIONS];
 let webhookDeliveries = [...WEBHOOK_DELIVERIES];
 let bankCatalog = [...BANK_CATALOG];
+let onboardingApplications: OnboardingApplication[] = [];
 let reportPackages = [...REPORT_PACKAGES];
 let notificationSettings = [...NOTIFICATION_SETTINGS];
 let assistantHistory = [...ASSISTANT_HISTORY];
@@ -231,6 +233,37 @@ export class MockBankingProvider implements BankingProvider {
         : c,
     );
     await delay(undefined, 400);
+  }
+
+  async getOnboardingApplications(): Promise<OnboardingApplication[]> {
+    return delay([...onboardingApplications]);
+  }
+  async saveOnboardingApplication(input: {
+    bankId: string;
+    productId: string;
+    company: string;
+    status: OnboardingApplication["status"];
+  }): Promise<OnboardingApplication> {
+    const now = new Date().toISOString();
+    const existing = onboardingApplications.find((a) => a.bankId === input.bankId && a.productId === input.productId);
+    let saved: OnboardingApplication;
+    if (existing) {
+      saved = { ...existing, status: input.status, sentAt: input.status === "sent" ? now : existing.sentAt };
+      onboardingApplications = onboardingApplications.map((a) => (a.id === existing.id ? saved : a));
+    } else {
+      saved = {
+        id: `app-${Date.now()}-${input.productId}`,
+        bankId: input.bankId,
+        productId: input.productId,
+        status: input.status,
+        company: input.company,
+        createdAt: now,
+        sentAt: input.status === "sent" ? now : undefined,
+      };
+      onboardingApplications = [saved, ...onboardingApplications];
+    }
+    await delay(undefined, 200);
+    return saved;
   }
 
   async getBankCatalog(): Promise<ConnectableBank[]> {

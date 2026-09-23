@@ -7,6 +7,7 @@ import type {
   ConnectableBank,
   DirectDebitMandate,
   IncomeInsight,
+  OnboardingApplication,
   CashFlowForecastPoint,
   CashFlowPoint,
   ClientSummary,
@@ -78,6 +79,12 @@ export class HttpBankingProvider implements BankingProvider {
   }
   async renewConsent(bankId: BankId): Promise<void> {
     await api(`/consents/${bankId}/renew`, { method: "POST" });
+  }
+  getOnboardingApplications(): Promise<OnboardingApplication[]> {
+    return api<OnboardingApplication[]>("/onboarding/applications");
+  }
+  saveOnboardingApplication(input: { bankId: string; productId: string; company: string; status: OnboardingApplication["status"] }): Promise<OnboardingApplication> {
+    return api<OnboardingApplication>("/onboarding/applications", { method: "POST", body: input });
   }
   getBankCatalog(): Promise<ConnectableBank[]> {
     return api<ConnectableBank[]>("/bank-catalog");
