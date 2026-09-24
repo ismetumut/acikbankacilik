@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useLocation } from "react-router-dom";
+import { productForPath } from "@/lib/products";
 import { useBanking } from "@/banking/context";
 import { useAsync } from "@/lib/useAsync";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -23,6 +25,16 @@ const STEPS = [
   { n: 4, label: "Çıktı & gönderim" },
 ];
 
+/** Ürün rayı id'si → onboarding ürün id'si. Sihirbaz o ürüne kilitlenir. */
+const RAIL_TO_ONBOARDING: Record<string, string> = {
+  nte: "netekstre",
+  psr: "posrapor",
+  dbs: "edbs",
+  tos: "tos",
+  nap: "nap",
+  nth: "netahsilat",
+};
+
 interface FormState {
   unvan: string;
   vergiNo: string;
@@ -42,10 +54,19 @@ interface FormState {
 
 export function OnboardingWizard() {
   const banking = useBanking();
+  const { pathname } = useLocation();
   const { data: applications, refetch } = useAsync(() => banking.getOnboardingApplications(), []);
 
-  const [step, setStep] = useState(1);
-  const [productId, setProductId] = useState<string | null>(null);
+  // Sihirbaz bir ürün menüsünün altında (ör. /nte/kurulum) → o ürüne kilitlenir, ürün adımı atlanır.
+  const railId = productForPath(pathname)?.id;
+  const lockedProductId = railId && ONBOARDING_PRODUCTS.some((p) => p.id === RAIL_TO_ONBOARDING[railId])
+    ? RAIL_TO_ONBOARDING[railId]
+    : null;
+  const locked = lockedProductId !== null;
+  const visibleSteps = locked ? STEPS.filter((s) => s.n >= 2) : STEPS;
+
+  const [step, setStep] = useState(locked ? 2 : 1);
+  const [productId, setProductId] = useState<string | null>(lockedProductId);
   const [bankIds, setBankIds] = useState<Set<string>>(new Set());
   const [form, setForm] = useState<FormState>({
     unvan: COMPANY_DETAILS.unvan,
@@ -168,8 +189,8 @@ ${form.telefon} · ${form.eposta}`;
   function resetWizard() {
     setSentMark(false);
     setBankIds(new Set());
-    setProductId(null);
-    setStep(1);
+    setProductId(lockedProductId);
+    setStep(locked ? 2 : 1);
     window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
@@ -183,17 +204,18 @@ ${form.telefon} · ${form.eposta}`;
   }
 
   const appStatus = (bId: string, pId: string) => applications?.find((a) => a.bankId === bId && a.productId === pId)?.status;
+  const shownApplications = locked ? applications?.filter((a) => a.productId === lockedProductId) : applications;
 
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <div className="flex items-center justify-center gap-2 overflow-x-auto pb-1">
-        {STEPS.map((s, i) => (
+        {visibleSteps.map((s, i) => (
           <div key={s.n} className="flex shrink-0 items-center gap-2">
             <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-bold ${step > s.n ? "bg-brand-500 text-white" : step === s.n ? "bg-ink-900 text-white" : "bg-cream-200 text-muted"}`}>
-              {step > s.n ? "✓" : s.n}
+              {step > s.n ? "✓" : i + 1}
             </span>
             <span className={`hidden text-sm font-semibold sm:inline ${step >= s.n ? "text-ink-900" : "text-muted"}`}>{s.label}</span>
-            {i < STEPS.length - 1 && <span className="h-px w-5 bg-line sm:w-8" />}
+            {i < visibleSteps.length - 1 && <span className="h-px w-5 bg-line sm:w-8" />}
           </div>
         ))}
       </div>
@@ -259,7 +281,7 @@ ${form.telefon} · ${form.eposta}`;
             })}
           </div>
           <div className="mt-6 flex gap-2">
-            <Button variant="secondary" onClick={() => setStep(1)}>← Geri</Button>
+            {!locked && <Button variant="secondary" onClick={() => setStep(1)}>← Geri</Button>}
             <Button variant="primary" className="flex-1" disabled={bankIds.size === 0} onClick={() => setStep(3)}>Devam ({bankIds.size} banka) →</Button>
           </div>
         </Card>
@@ -383,13 +405,13 @@ ${form.telefon} · ${form.eposta}`;
           <CardTitle>Başvuru durumu</CardTitle>
           <span className="text-xs text-muted">banka × ürün</span>
         </CardHeader>
-        {!applications ? (
+        {!shownApplications ? (
           <LoadingRows rows={2} />
-        ) : applications.length === 0 ? (
-          <p className="py-4 text-center text-sm text-muted">Henüz başvuru yok. Yukarıdan ürün ve banka seçip başlayın.</p>
+        ) : shownApplications.length === 0 ? (
+          <p className="py-4 text-center text-sm text-muted">Henüz başvuru yok. Yukarıdan {locked ? "banka" : "ürün ve banka"} seçip başlayın.</p>
         ) : (
           <div className="divide-y divide-line">
-            {applications.map((a) => {
+            {shownApplications.map((a) => {
               const bn = NETEKSTRE_BANKS.find((x) => x.id === a.bankId)?.name ?? BANK_APPLICATION_INFO.find((x) => x.bankId === a.bankId)?.bankName ?? a.bankId;
               const pn = ONBOARDING_PRODUCTS.find((x) => x.id === a.productId)?.name ?? a.productId;
               return (
