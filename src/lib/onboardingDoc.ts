@@ -213,23 +213,50 @@ export function buildFilledDocx(data: FilledFormData): Uint8Array {
   return zip.generate({ type: "uint8array", compression: "DEFLATE" });
 }
 
-/** Tarayıcıda dolu .docx indirir. */
-export function downloadFilledDocx(data: FilledFormData) {
-  const bytes = buildFilledDocx(data);
-  const blob = new Blob([bytes as unknown as BlobPart], {
-    type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  const slug = data.bankName
+/** Banka adından dosya adı türetir (Türkçe karakterler sadeleştirilir). */
+function slugify(name: string): string {
+  return name
     .toLocaleLowerCase("tr")
     .replace(/[çğıöşü]/g, (c) => ({ ç: "c", ğ: "g", ı: "i", ö: "o", ş: "s", ü: "u" })[c] ?? c)
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-|-$/g, "");
+}
+
+function triggerDownload(bytes: Uint8Array, filename: string, mime: string) {
+  const blob = new Blob([bytes as unknown as BlobPart], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
   a.href = url;
-  a.download = `${slug}-netekstre-basvuru-dolu.docx`;
+  a.download = filename;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
   setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+const DOCX_MIME = "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+/** Tek bankanın dolu .docx dosyasını indirir. */
+export function downloadFilledDocx(data: FilledFormData) {
+  triggerDownload(buildFilledDocx(data), `${slugify(data.bankName)}-netekstre-basvuru-dolu.docx`, DOCX_MIME);
+}
+
+/** Seçilen tüm bankaların dolu formlarını tek .zip olarak indirir. */
+export function downloadAllFilledDocx(list: FilledFormData[]) {
+  if (list.length === 0) return;
+  if (list.length === 1) {
+    downloadFilledDocx(list[0]);
+    return;
+  }
+  const bundle = new PizZip();
+  const used = new Set<string>();
+  for (const data of list) {
+    let name = `${slugify(data.bankName)}-netekstre-basvuru-dolu.docx`;
+    let i = 2;
+    while (used.has(name)) name = `${slugify(data.bankName)}-${i++}-netekstre-basvuru-dolu.docx`;
+    used.add(name);
+    bundle.file(name, buildFilledDocx(data));
+  }
+  const bytes = bundle.generate({ type: "uint8array", compression: "DEFLATE" });
+  triggerDownload(bytes, `netekstre-basvuru-formlari-${list.length}-banka.zip`, "application/zip");
 }

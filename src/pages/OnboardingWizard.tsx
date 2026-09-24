@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { productForPath } from "@/lib/products";
-import { downloadFilledDocx } from "@/lib/onboardingDoc";
+import { downloadFilledDocx, downloadAllFilledDocx } from "@/lib/onboardingDoc";
 import { useBanking } from "@/banking/context";
 import { useAsync } from "@/lib/useAsync";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -356,7 +356,18 @@ ${form.telefon} · ${form.eposta}`;
           <Card>
             <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
               <h2 className="font-display text-lg font-extrabold text-ink-900">{product.name} — başvuru paketi</h2>
-              <Badge tone="neutral">{selectedBanks.length} banka</Badge>
+              <div className="flex items-center gap-2">
+                <Badge tone="neutral">{selectedBanks.length} banka</Badge>
+                {selectedBanks.length > 1 && (
+                  <Button
+                    variant="primary"
+                    size="sm"
+                    onClick={() => downloadAllFilledDocx(selectedBanks.map((b) => fillData(b.name)))}
+                  >
+                    ⬇ Tümünü indir (.zip · {selectedBanks.length})
+                  </Button>
+                )}
+              </div>
             </div>
             <p className="mb-4 text-xs text-muted">
               Sağlayıcı: <span className="font-semibold text-ink-900">{PROVIDER_NAME}</span> ({PROVIDER_BRAND}) · Beyaz
