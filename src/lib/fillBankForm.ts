@@ -33,10 +33,9 @@ const FIELD_KEYS: [FieldKey, string[]][] = [
     "unvan",
     ["firmaunvanı", "ticaretunvanı", "firmaadı", "şirketunvanı", "müşteriadı", "müşteriünvanı", "müşteriismi", "firmaismi", "hesapsahibi", "tüzelkişi", "kuruluşadı", "mükellefadı", "ünvanı", "unvanı"],
   ],
-  ["ip", ["ıpadresi", "ipadresi", "ıpadres", "ipadres", "statikip"]],
-  ["adres", ["firmaadresi", "tebligatadresi", "açıkadres", "adresi", "adres"]],
   ["kep", ["kepadresi", "kep"]],
   ["eposta", ["yetkilieposta", "yetkiliemail", "epostaadresi", "emailadresi", "mailadresi", "elektronikposta", "eposta", "email", "mail"]],
+  ["adres", ["firmaadresi", "tebligatadresi", "açıkadres", "adresi", "adres"]],
   ["telefon", ["yetkiligsmno", "yetkiligsm", "yetkilitelefon", "telefonnumarası", "telefonno", "gsmno", "ceptelefonu", "telefon", "gsm", "cep"]],
   ["yetkili", ["yetkiliadısoyadı", "yetkiliadsoyad", "yetkiliadı", "yetkiliismi", "adsoyad", "adısoyadı", "yetkilikişi", "ilgilikişi", "iletişimkişisi", "isimsoyisim"]],
   ["iban", ["ibannumarası", "ibanno", "iban", "hesapnumarası", "hesapno", "belirttiğimhesap"]],
@@ -49,6 +48,24 @@ function matchField(label: string): FieldKey | null {
   if (!n) return null;
   for (const [field, keys] of FIELD_KEYS) for (const k of keys) if (n === k || n.includes(k)) return field;
   return null;
+}
+
+/**
+ * "Etiket: <sonrası>" kalıbından güvenli etiket çıkarır.
+ * Onay-kutusu satırlarını (□ ☐ ▢) ve cümle-uzunluğundaki metinleri eler;
+ * iki noktadan önceki son kısa parçayı etiket kabul eder.
+ */
+function labelBeforeColon(text: string): { field: FieldKey; after: string } | null {
+  const ci = text.indexOf(":");
+  if (ci <= 0) return null;
+  const seg = text.slice(0, ci);
+  if (/[□☐▢❒☑☒]/.test(seg)) return null; // onay kutusu → seçili değil, alan değil
+  const parts = seg.trim().split(/[.►\t]|\s{2,}/).filter(Boolean);
+  const label = parts.length ? parts[parts.length - 1].trim() : "";
+  if (!label || label.length > 25) return null;
+  const field = matchField(label);
+  if (!field) return null;
+  return { field, after: text.slice(ci + 1).trim() };
 }
 
 function cellText(tc: Element): string {
@@ -88,6 +105,56 @@ export interface FillResult {
   filled: FieldKey[];
 }
 
+function paraText(p: Element): string {
+  const ts = p.getElementsByTagName("w:t");
+  let s = "";
+  for (let i = 0; i < ts.length; i++) s += ts[i].textContent || "";
+  return s.trim();
+}
+
+/** Sadece boş/nokta/alt-çizgi/… içeren (doldurulmayı bekleyen) yer tutucu mu? */
+function isPlaceholder(t: string): boolean {
+  return t === "" || /^[\s.…_·…–-]+$/.test(t);
+}
+
+function hasTableAncestor(node: Element): boolean {
+  let p = node.parentNode as Element | null;
+  while (p) {
+    if (p.nodeType === 1 && p.tagName === "w:tc") return true;
+    p = p.parentNode as Element | null;
+  }
+  return false;
+}
+
+/** Paragrafın sonuna değer run'ı ekler; içindeki yer-tutucu (nokta) run'larını boşaltır. */
+function appendValueRun(p: Element, value: string, doc: Document) {
+  const ts = p.getElementsByTagName("w:t");
+  for (let i = 0; i < ts.length; i++) {
+    const txt = ts[i].textContent || "";
+    if (txt && isPlaceholder(txt.trim())) ts[i].textContent = "";
+  }
+  const r = doc.createElement("w:r");
+  const t = doc.createElement("w:t");
+  t.setAttribute("xml:space", "preserve");
+  t.textContent = " " + value;
+  r.appendChild(t);
+  p.appendChild(r);
+}
+
+/** Paragraf içeriğini tek değer run'ıyla değiştirir (pPr korunur). */
+function setParaText(p: Element, value: string, doc: Document) {
+  const pPr = p.getElementsByTagName("w:pPr")[0];
+  const pPrClone = pPr ? (pPr.cloneNode(true) as Element) : null;
+  while (p.firstChild) p.removeChild(p.firstChild);
+  if (pPrClone) p.appendChild(pPrClone);
+  const r = doc.createElement("w:r");
+  const t = doc.createElement("w:t");
+  t.setAttribute("xml:space", "preserve");
+  t.textContent = value;
+  r.appendChild(t);
+  p.appendChild(r);
+}
+
 /**
  * docx baytlarını alır, tablo alanlarını doldurur, dolu docx döndürür.
  * DOMParser/XMLSerializer global olmalı (tarayıcıda yerleşik; node testinde @xmldom ile enjekte edilir).
@@ -100,16 +167,17 @@ export function fillDocxBytes(input: ArrayBuffer | Uint8Array, data: BankFormDat
   const rowCells = rows.map(directCells);
   const used = new Set<FieldKey>();
 
+  const isBlankCell = (tc: Element) => isPlaceholder(cellText(tc));
   const tryFill = (field: FieldKey, tc: Element) => {
     if (used.has(field)) return;
     const v = data[field];
     if (!v) return;
-    if (cellText(tc)) return; // hedef boş değilse dokunma
+    if (!isBlankCell(tc)) return; // hedef boş/yer-tutucu değilse dokunma
     setCellValue(tc, v, doc);
     used.add(field);
   };
 
-  // Yatay: [etiket][boş]
+  // Yatay: [etiket][boş/yer-tutucu]
   for (const tcs of rowCells) {
     for (let c = 0; c < tcs.length - 1; c++) {
       const f = matchField(cellText(tcs[c]));
@@ -121,6 +189,43 @@ export function fillDocxBytes(input: ArrayBuffer | Uint8Array, data: BankFormDat
     if (rowCells[r].length === 1 && rowCells[r + 1].length === 1) {
       const f = matchField(cellText(rowCells[r][0]));
       if (f) tryFill(f, rowCells[r + 1][0]);
+    }
+  }
+  // Hücre-içi "Etiket: <yer tutucu>" (aynı hücrede değer)
+  for (const tcs of rowCells) {
+    for (const tc of tcs) {
+      const m = labelBeforeColon(cellText(tc));
+      if (!m || used.has(m.field) || !data[m.field] || !isPlaceholder(m.after)) continue;
+      const cp = tc.getElementsByTagName("w:p")[0];
+      if (cp) {
+        appendValueRun(cp, data[m.field], doc);
+        used.add(m.field);
+      }
+    }
+  }
+
+  // Prose formlar: gövde paragrafları (tablo dışı)
+  const bodyParas = Array.from(doc.getElementsByTagName("w:p")).filter((p) => !hasTableAncestor(p));
+
+  // A) Satır-içi "Etiket: <yer tutucu>"
+  for (const p of bodyParas) {
+    const m = labelBeforeColon(paraText(p));
+    if (!m || used.has(m.field) || !data[m.field] || !isPlaceholder(m.after)) continue;
+    appendValueRun(p, data[m.field], doc);
+    used.add(m.field);
+  }
+
+  // B) Etiket paragrafı + hemen sonraki yer-tutucu paragraf
+  for (let i = 0; i < bodyParas.length; i++) {
+    const f = matchField(paraText(bodyParas[i]));
+    if (!f || used.has(f) || !data[f]) continue;
+    let j = i + 1;
+    while (j < bodyParas.length && paraText(bodyParas[j]) === "") j++;
+    if (j >= bodyParas.length) continue;
+    const nextText = paraText(bodyParas[j]);
+    if (nextText !== "" && isPlaceholder(nextText)) {
+      setParaText(bodyParas[j], data[f], doc);
+      used.add(f);
     }
   }
 

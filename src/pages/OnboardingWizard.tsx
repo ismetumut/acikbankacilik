@@ -219,7 +219,7 @@ ${form.telefon} · ${form.eposta}`;
       eposta: form.eposta || form.teknikEposta,
       kep: form.kep,
       ip: FINROTA_ACCESS_IPS.join(", "),
-      iban: form.kapsam,
+      iban: /^\s*TR\d/i.test(form.kapsam) ? form.kapsam : "",
     };
   }
 
