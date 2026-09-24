@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { productForPath } from "@/lib/products";
+import { downloadFilledDocx } from "@/lib/onboardingDoc";
 import { useBanking } from "@/banking/context";
 import { useAsync } from "@/lib/useAsync";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -115,7 +116,7 @@ export function OnboardingWizard() {
   function printGuide(bankName: string) {
     const row = (k: string, v: string) => `<tr><th>${k}</th><td>${v || "—"}</td></tr>`;
     const ipRows = FINROTA_ACCESS_IPS.map((ip) => `<tr><td class="mono">${ip}</td></tr>`).join("");
-    const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>${bankName} Netekstre doldurma rehberi</title>
+    const html = `<!doctype html><html lang="tr"><head><meta charset="utf-8"><title>${bankName} Netekstre başvuru formu (dolu)</title>
 <style>
   *{box-sizing:border-box} body{font:13px/1.5 -apple-system,Arial,sans-serif;color:#1c1a15;margin:40px}
   h1{font-size:17px;margin:0 0 2px} .sub{color:#666;font-size:12px;margin-bottom:16px}
@@ -125,8 +126,8 @@ export function OnboardingWizard() {
   .box{background:#f8f6f0;border:1px solid #e4e0d4;padding:10px;border-radius:6px;font-size:12px;margin:10px 0}
   .note{font-size:11px;color:#777;margin-top:16px}
 </style></head><body>
-  <h1>${bankName} — Netekstre başvurusu · doldurma rehberi</h1>
-  <div class="sub">Bu sayfa, indirdiğiniz resmi ${bankName} formunu doldurmanız içindir. Aşağıdaki bilgileri forma işleyin, imzalayıp bankaya iletin.</div>
+  <h1>${bankName} — Netekstre Web Servis Yetkilendirme Başvurusu</h1>
+  <div class="sub">Aşağıdaki bilgiler önceden dolduruldu. Bu sayfayı PDF olarak yazdırıp imzalayabilir veya düzenlenebilir sürüm için "Dolu başvuru formu (.docx)" dosyasını kullanabilirsiniz.</div>
   <h2>Firma bilgileri</h2>
   <table>
     ${row("Firma unvanı", form.unvan)}
@@ -179,6 +180,29 @@ ${form.yetkili} · ${form.yetkiliUnvan}
 ${form.unvan}
 ${form.telefon} · ${form.eposta}`;
     return { subject, body };
+  }
+
+  function fillData(bankName: string) {
+    return {
+      bankName,
+      unvan: form.unvan,
+      vergiNo: form.vergiNo,
+      mersisNo: form.mersisNo,
+      musteriNo: form.musteriNo,
+      adres: form.adres,
+      yetkili: form.yetkili,
+      yetkiliUnvan: form.yetkiliUnvan,
+      telefon: form.telefon,
+      eposta: form.eposta,
+      kep: form.kep,
+      teknikYetkili: form.teknikYetkili,
+      teknikGsm: form.teknikGsm,
+      teknikEposta: form.teknikEposta,
+      kapsam: form.kapsam,
+      providerName: PROVIDER_NAME,
+      providerBrand: PROVIDER_BRAND,
+      ips: FINROTA_ACCESS_IPS,
+    };
   }
 
   function mailtoHref(applyTo: string) {
@@ -258,7 +282,7 @@ ${form.telefon} · ${form.eposta}`;
           </div>
           <p className="mb-4 text-xs text-muted">
             {isNetekstre
-              ? `Her banka için o bankanın gerçek başvuru formu üretilir. Toplam ${NETEKSTRE_BANKS.length} banka.`
+              ? `Her banka için tüm alanları dolu başvuru formu (.docx) üretilir; bankanın boş resmi formu da eklidir. Toplam ${NETEKSTRE_BANKS.length} banka.`
               : "Başvuru yapılacak bankaları seç."}
           </p>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -350,16 +374,15 @@ ${form.telefon} · ${form.eposta}`;
                       {ne && <Badge tone="neutral">{ne.format}</Badge>}
                     </div>
                     <div className="flex flex-wrap gap-2">
-                      {ne ? (
-                        <>
-                          <a href={`/${ne.formFile}`} download>
-                            <Button variant="primary" size="sm">⬇ Gerçek {b.name} formu</Button>
-                          </a>
-                          <Button variant="secondary" size="sm" onClick={() => printGuide(b.name)}>🖨 Doldurma rehberi</Button>
-                        </>
-                      ) : (
-                        <Button variant="secondary" size="sm" onClick={() => printGuide(b.name)}>🖨 Form / rehber</Button>
+                      <Button variant="primary" size="sm" onClick={() => downloadFilledDocx(fillData(b.name))}>
+                        ⬇ Dolu başvuru formu (.docx)
+                      </Button>
+                      {ne && (
+                        <a href={`/${ne.formFile}`} download>
+                          <Button variant="secondary" size="sm">⬇ Resmi banka formu (boş, {ne.format})</Button>
+                        </a>
                       )}
+                      <Button variant="secondary" size="sm" onClick={() => printGuide(b.name)}>🖨 Yazdır / PDF</Button>
                       {applyTo && (
                         <a href={mailtoHref(applyTo)}>
                           <Button variant="secondary" size="sm">✉ E-posta</Button>
