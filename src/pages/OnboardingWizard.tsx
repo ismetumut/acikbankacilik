@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useLocation } from "react-router-dom";
 import { productForPath } from "@/lib/products";
 import { downloadFilledDocx, downloadAllFilledDocx } from "@/lib/onboardingDoc";
+import { fillAndDownloadBankForm, type BankFormData } from "@/lib/fillBankForm";
 import { useBanking } from "@/banking/context";
 import { useAsync } from "@/lib/useAsync";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -86,6 +87,7 @@ export function OnboardingWizard() {
     kapsam: "",
   });
   const [sentMark, setSentMark] = useState(false);
+  const [bankNote, setBankNote] = useState<Record<string, string>>({});
 
   const product = ONBOARDING_PRODUCTS.find((p) => p.id === productId) ?? null;
   const isNetekstre = productId === "netekstre";
@@ -203,6 +205,38 @@ ${form.telefon} · ${form.eposta}`;
       providerBrand: PROVIDER_BRAND,
       ips: FINROTA_ACCESS_IPS,
     };
+  }
+
+  function bankFillData(): BankFormData {
+    return {
+      unvan: form.unvan,
+      vergiNo: form.vergiNo,
+      mersisNo: form.mersisNo,
+      adres: form.adres,
+      musteriNo: form.musteriNo,
+      yetkili: form.yetkili,
+      telefon: form.telefon || form.teknikGsm,
+      eposta: form.eposta || form.teknikEposta,
+      kep: form.kep,
+      ip: FINROTA_ACCESS_IPS.join(", "),
+      iban: form.kapsam,
+    };
+  }
+
+  async function handleFillReal(bankId: string, formFile: string, bankSlug: string) {
+    setBankNote((n) => ({ ...n, [bankId]: "hazırlanıyor…" }));
+    try {
+      const count = await fillAndDownloadBankForm(formFile, `${bankSlug}-resmi-form-dolu.docx`, bankFillData());
+      setBankNote((n) => ({
+        ...n,
+        [bankId]:
+          count === 0
+            ? "Bu formun tablo yapısı otomatik doldurmaya uymadı; lütfen 'Dolu başvuru formu'nu kullanın."
+            : `Bankanın kendi formu ${count} alanla dolduruldu ✓`,
+      }));
+    } catch {
+      setBankNote((n) => ({ ...n, [bankId]: "Form indirilemedi." }));
+    }
   }
 
   function mailtoHref(applyTo: string) {
@@ -388,9 +422,18 @@ ${form.telefon} · ${form.eposta}`;
                       <Button variant="primary" size="sm" onClick={() => downloadFilledDocx(fillData(b.name))}>
                         ⬇ Dolu başvuru formu (.docx)
                       </Button>
+                      {ne && ne.format === "DOCX" && (
+                        <Button
+                          variant="secondary"
+                          size="sm"
+                          onClick={() => handleFillReal(b.id, ne.formFile, b.id)}
+                        >
+                          ⬇ Bankanın kendi formu (dolu)
+                        </Button>
+                      )}
                       {ne && (
                         <a href={`/${ne.formFile}`} download>
-                          <Button variant="secondary" size="sm">⬇ Resmi banka formu (boş, {ne.format})</Button>
+                          <Button variant="secondary" size="sm">⬇ Boş resmi form ({ne.format})</Button>
                         </a>
                       )}
                       <Button variant="secondary" size="sm" onClick={() => printGuide(b.name)}>🖨 Yazdır / PDF</Button>
@@ -400,6 +443,9 @@ ${form.telefon} · ${form.eposta}`;
                         </a>
                       )}
                     </div>
+                    {bankNote[b.id] && (
+                      <p className="mt-2 text-[11px] font-semibold text-muted">{bankNote[b.id]}</p>
+                    )}
                   </div>
                 );
               })}
