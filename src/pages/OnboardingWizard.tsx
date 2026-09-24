@@ -3,6 +3,7 @@ import { useLocation } from "react-router-dom";
 import { productForPath } from "@/lib/products";
 import { downloadFilledDocx, downloadAllFilledDocx } from "@/lib/onboardingDoc";
 import { fillAndDownloadBankForm, type BankFormData } from "@/lib/fillBankForm";
+import { fillAndDownloadXlsx } from "@/lib/fillXlsx";
 import { useBanking } from "@/banking/context";
 import { useAsync } from "@/lib/useAsync";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -223,15 +224,18 @@ ${form.telefon} · ${form.eposta}`;
     };
   }
 
-  async function handleFillReal(bankId: string, formFile: string, bankSlug: string) {
+  async function handleFillReal(bankId: string, formFile: string, format: string, bankSlug: string) {
     setBankNote((n) => ({ ...n, [bankId]: "hazırlanıyor…" }));
     try {
-      const count = await fillAndDownloadBankForm(formFile, `${bankSlug}-resmi-form-dolu.docx`, bankFillData());
+      const count =
+        format === "XLSX"
+          ? await fillAndDownloadXlsx(formFile, `${bankSlug}-resmi-form-dolu.xlsx`, bankFillData())
+          : await fillAndDownloadBankForm(formFile, `${bankSlug}-resmi-form-dolu.docx`, bankFillData());
       setBankNote((n) => ({
         ...n,
         [bankId]:
           count === 0
-            ? "Bu formun tablo yapısı otomatik doldurmaya uymadı; lütfen 'Dolu başvuru formu'nu kullanın."
+            ? "Bu formun yapısı otomatik doldurmaya uymadı; lütfen 'Dolu başvuru formu'nu kullanın."
             : `Bankanın kendi formu ${count} alanla dolduruldu ✓`,
       }));
     } catch {
@@ -422,11 +426,11 @@ ${form.telefon} · ${form.eposta}`;
                       <Button variant="primary" size="sm" onClick={() => downloadFilledDocx(fillData(b.name))}>
                         ⬇ Dolu başvuru formu (.docx)
                       </Button>
-                      {ne && ne.format === "DOCX" && (
+                      {ne && (ne.format === "DOCX" || ne.format === "XLSX") && (
                         <Button
                           variant="secondary"
                           size="sm"
-                          onClick={() => handleFillReal(b.id, ne.formFile, b.id)}
+                          onClick={() => handleFillReal(b.id, ne.formFile, ne.format, b.id)}
                         >
                           ⬇ Bankanın kendi formu (dolu)
                         </Button>
