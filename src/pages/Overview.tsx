@@ -208,7 +208,7 @@ export function Overview() {
       <Card>
         <CardHeader>
           <CardTitle>Nakit akışı tahmini</CardTitle>
-          <Link to="/nakit-akisi" className="text-sm font-semibold text-brand-500 hover:underline">
+          <Link to="/nap" className="text-sm font-semibold text-brand-500 hover:underline">
             Detay →
           </Link>
         </CardHeader>
@@ -244,7 +244,7 @@ export function Overview() {
       <Card>
         <CardHeader>
           <CardTitle>Son hareketler</CardTitle>
-          <Link to="/hareketler" className="text-sm font-semibold text-brand-500 hover:underline">
+          <Link to="/nte/hareketler" className="text-sm font-semibold text-brand-500 hover:underline">
             Tümü →
           </Link>
         </CardHeader>
@@ -285,7 +285,7 @@ export function Overview() {
           <div className="flex items-center justify-between">
             <dt className="text-muted">Bekleyen mutabakat</dt>
             <dd>
-              <Link to="/mutabakat" className="font-bold text-brand-500 hover:underline">
+              <Link to="/nte/mutabakat" className="font-bold text-brand-500 hover:underline">
                 {exceptions?.length ?? "…"} istisna →
               </Link>
             </dd>
@@ -297,7 +297,7 @@ export function Overview() {
         </dl>
         <p className="mt-4 rounded-xl bg-cream-100 p-3 text-xs text-muted">
           Bu özet her sabah 08:30'da WhatsApp'a da gönderiliyor.{" "}
-          <Link to="/rizalar" className="font-semibold text-ink-900 hover:underline">
+          <Link to="/nte/bildirimler" className="font-semibold text-ink-900 hover:underline">
             Ayarlar
           </Link>
         </p>
@@ -307,7 +307,7 @@ export function Overview() {
       <Card>
         <CardHeader>
           <CardTitle>Onay bekleyen ödemeler</CardTitle>
-          <Link to="/odeme-tetikleme" className="text-sm font-semibold text-brand-500 hover:underline">
+          <Link to="/tos/odeme-hazirla" className="text-sm font-semibold text-brand-500 hover:underline">
             Tümü →
           </Link>
         </CardHeader>
@@ -339,7 +339,7 @@ export function Overview() {
       <Card>
         <CardHeader>
           <CardTitle>Mutabakat istisnaları</CardTitle>
-          <Link to="/mutabakat" className="text-sm font-semibold text-brand-500 hover:underline">
+          <Link to="/nte/mutabakat" className="text-sm font-semibold text-brand-500 hover:underline">
             Tümü →
           </Link>
         </CardHeader>
@@ -366,7 +366,7 @@ export function Overview() {
       <Card>
         <CardHeader>
           <CardTitle>Tahsilat özeti</CardTitle>
-          <Link to="/tahsilat" className="text-sm font-semibold text-brand-500 hover:underline">
+          <Link to="/nth" className="text-sm font-semibold text-brand-500 hover:underline">
             Tümü →
           </Link>
         </CardHeader>
@@ -414,7 +414,7 @@ export function Overview() {
             "Tüm banka bağlantı izinleriniz aktif."
           )}
         </p>
-        <Link to="/rizalar">
+        <Link to="/nte/bildirimler">
           <Button variant="primary" className="w-full" disabled={!expiringConsent}>
             Tek tıkla yenile
           </Button>

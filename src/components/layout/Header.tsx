@@ -4,25 +4,29 @@ import { useBanking } from "@/banking/context";
 import { useCompany } from "@/company/context";
 import { useAuth } from "@/auth/context";
 import { useAsync } from "@/lib/useAsync";
+import { GLOBAL_TOOLS, productForPath, type MenuNode } from "@/lib/products";
 
-const ROUTE_TITLES: Record<string, string> = {
-  "/": "Genel bakış",
-  "/hareketler": "Hesap hareketleri",
-  "/bakiyeler": "Bakiyeler",
-  "/odeme-tetikleme": "Ödeme tetikleme (TÖS)",
-  "/otomatik-odeme": "Otomatik ödeme",
-  "/gelistirici": "Geliştirici / API",
-  "/tahsilat": "Tahsilat",
-  "/mutabakat": "Mutabakat",
-  "/nakit-akisi": "Nakit akışı tahmini",
-  "/asistan": "Asistan",
-  "/raporlar": "Raporlar & denetim",
-  "/rizalar": "Rızalar & bildirimler",
-  "/musteri-paneli": "Müşteri paneli",
-  "/kurulum": "Kurulum sihirbazı",
-  "/mobil": "Mobil uygulama",
-  "/admin": "Admin panel · API Hub",
-};
+function titleForPath(pathname: string): string {
+  const walk = (nodes: MenuNode[]): string | undefined => {
+    for (const n of nodes) {
+      if (n.path === pathname) return n.label;
+      if (n.children) {
+        const c = walk(n.children);
+        if (c) return c;
+      }
+    }
+    return undefined;
+  };
+  const product = productForPath(pathname);
+  if (product) {
+    const label = walk(product.menu);
+    if (label) return label === "Anasayfa" ? product.name : `${product.name} · ${label}`;
+    return product.name;
+  }
+  const globalLabel = walk(GLOBAL_TOOLS);
+  if (globalLabel) return globalLabel;
+  return "Akort";
+}
 
 export function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const location = useLocation();
@@ -33,13 +37,13 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
   const { data: accounts } = useAsync(() => banking.getAccounts(companyId), [companyId]);
   const [query, setQuery] = useState("");
 
-  const title = ROUTE_TITLES[location.pathname] ?? "Akort";
+  const title = titleForPath(location.pathname);
   const bankCount = accounts ? new Set(accounts.map((a) => a.bankId)).size : undefined;
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!query.trim()) return;
-    navigate(`/hareketler?q=${encodeURIComponent(query.trim())}`);
+    navigate(`/nte/hareketler?q=${encodeURIComponent(query.trim())}`);
   }
 
   return (
@@ -69,7 +73,7 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
         </form>
         <button
           type="button"
-          onClick={() => navigate("/hareketler")}
+          onClick={() => navigate("/nte/hareketler")}
           aria-label="Hareket, IBAN, firma ara"
           className="flex h-9 w-9 items-center justify-center rounded-full border border-line text-ink-900 md:hidden"
         >

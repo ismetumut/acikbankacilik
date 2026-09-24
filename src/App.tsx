@@ -1,6 +1,7 @@
-import { lazy, Suspense } from "react";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { lazy, Suspense, type ComponentType } from "react";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { PRODUCTS, GLOBAL_TOOLS, type MenuNode } from "@/lib/products";
 
 const Overview = lazy(() => import("@/pages/Overview").then((m) => ({ default: m.Overview })));
 const Transactions = lazy(() => import("@/pages/Transactions").then((m) => ({ default: m.Transactions })));
@@ -19,10 +20,42 @@ const ClientPanel = lazy(() => import("@/pages/ClientPanel").then((m) => ({ defa
 const OnboardingWizard = lazy(() =>
   import("@/pages/OnboardingWizard").then((m) => ({ default: m.OnboardingWizard })),
 );
-const MobileShowcase = lazy(() => import("@/pages/MobileShowcase").then((m) => ({ default: m.MobileShowcase })));
 const AdminPanel = lazy(() => import("@/pages/AdminPanel").then((m) => ({ default: m.AdminPanel })));
 const DeveloperPortal = lazy(() => import("@/pages/DeveloperPortal").then((m) => ({ default: m.DeveloperPortal })));
+const Placeholder = lazy(() => import("@/pages/Placeholder").then((m) => ({ default: m.Placeholder })));
 const NotFound = lazy(() => import("@/pages/NotFound").then((m) => ({ default: m.NotFound })));
+
+/** products.ts `comp` anahtarı → gerçek bileşen. Eşleşmeyen → Placeholder. */
+const COMPONENTS: Record<string, ComponentType> = {
+  Overview,
+  Transactions,
+  Balances,
+  PaymentInitiation,
+  AutoPayments,
+  Collections,
+  Reconciliation,
+  CashFlow,
+  Assistant,
+  Reports,
+  Consents,
+  ClientPanel,
+  OnboardingWizard,
+  AdminPanel,
+  DeveloperPortal,
+};
+
+function collectLeaves(nodes: MenuNode[], acc: MenuNode[] = []): MenuNode[] {
+  for (const n of nodes) {
+    if (n.path) acc.push(n);
+    if (n.children) collectLeaves(n.children, acc);
+  }
+  return acc;
+}
+
+const ALL_LEAVES = [
+  ...PRODUCTS.flatMap((p) => collectLeaves(p.menu)),
+  ...collectLeaves(GLOBAL_TOOLS),
+];
 
 export default function App() {
   return (
@@ -30,22 +63,11 @@ export default function App() {
       <Suspense fallback={null}>
         <Routes>
           <Route element={<AppLayout />}>
-            <Route path="/" element={<Overview />} />
-            <Route path="/hareketler" element={<Transactions />} />
-            <Route path="/bakiyeler" element={<Balances />} />
-            <Route path="/odeme-tetikleme" element={<PaymentInitiation />} />
-            <Route path="/otomatik-odeme" element={<AutoPayments />} />
-            <Route path="/tahsilat" element={<Collections />} />
-            <Route path="/mutabakat" element={<Reconciliation />} />
-            <Route path="/nakit-akisi" element={<CashFlow />} />
-            <Route path="/asistan" element={<Assistant />} />
-            <Route path="/raporlar" element={<Reports />} />
-            <Route path="/rizalar" element={<Consents />} />
-            <Route path="/musteri-paneli" element={<ClientPanel />} />
-            <Route path="/kurulum" element={<OnboardingWizard />} />
-            <Route path="/mobil" element={<MobileShowcase />} />
-            <Route path="/gelistirici" element={<DeveloperPortal />} />
-            <Route path="/admin" element={<AdminPanel />} />
+            <Route path="/" element={<Navigate to="/nte" replace />} />
+            {ALL_LEAVES.map((leaf) => {
+              const Comp = leaf.comp ? COMPONENTS[leaf.comp] ?? Placeholder : Placeholder;
+              return <Route key={leaf.path} path={leaf.path} element={<Comp />} />;
+            })}
             <Route path="*" element={<NotFound />} />
           </Route>
         </Routes>
