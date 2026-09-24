@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
 import { useBanking } from "@/banking/context";
 import { useAsync } from "@/lib/useAsync";
 import { Card, CardHeader, CardTitle } from "@/components/ui/Card";
@@ -164,6 +163,14 @@ ${form.telefon} · ${form.eposta}`;
   function mailtoHref(applyTo: string) {
     const { subject, body } = emailText();
     return `mailto:${applyTo}?cc=${encodeURIComponent(FINROTA_CC)}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  }
+
+  function resetWizard() {
+    setSentMark(false);
+    setBankIds(new Set());
+    setProductId(null);
+    setStep(1);
+    window.scrollTo({ top: 0, behavior: "smooth" });
   }
 
   async function markAsSent() {
@@ -364,7 +371,7 @@ ${form.telefon} · ${form.eposta}`;
             )}
             <div className="mt-3 flex gap-2">
               <Button variant="secondary" onClick={() => setStep(2)}>← Bankaları düzenle</Button>
-              <Link to="/" className="flex-1"><Button variant="primary" className="w-full">Bitir</Button></Link>
+              <Button variant="primary" className="flex-1" onClick={resetWizard}>Yeni başvuru</Button>
             </div>
           </Card>
         </div>

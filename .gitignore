@@ -34,3 +34,5 @@ akort-frontend-monsterasp.zip
 *.sln
 *.sw?
 .env.deploy
+akort-dist.zip
+public/forms/netekstre-tpl/
